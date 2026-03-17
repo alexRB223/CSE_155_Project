@@ -2,7 +2,7 @@
 
 An Electron application with React and TypeScript
 
-## Recommended IDE Setup
+## Recommended IDE Setup by electron-vite
 
 - [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 
@@ -11,6 +11,7 @@ An Electron application with React and TypeScript
 ### Install
 
 ```bash
+$ cd posture-detector
 $ npm install
 ```
 
