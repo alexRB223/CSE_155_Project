@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import CameraPanel from './components/CameraPanel'
+import { useCallback, useEffect, useState } from 'react'
+import CameraPanel, { type PostureState } from './components/CameraPanel'
 import PostureStatusCard from './components/PostureStatusCard'
 import SessionTimer from './components/SessionTimer'
 import ReminderBanner from './components/ReminderBanner'
@@ -10,6 +10,9 @@ function App(): React.JSX.Element {
   const [seconds, setSeconds] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
   const [backendStatus, setBackendStatus] = useState('Checking backend...')
+  const [postureState, setPostureState] = useState<PostureState>('loading')
+  const [postureConfidence, setPostureConfidence] = useState(0)
+  const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
 
   useEffect(() => {
     if (!isRunning) return
@@ -60,6 +63,12 @@ function App(): React.JSX.Element {
     setSeconds(0)
   }
 
+  const handlePostureUpdate = useCallback((state: PostureState, confidence: number, note: string): void => {
+    setPostureState(state)
+    setPostureConfidence(confidence)
+    setPostureNote(note)
+  }, [])
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -70,9 +79,13 @@ function App(): React.JSX.Element {
 
       <main className="dashboard">
         <div className="top-grid">
-          <CameraPanel />
+          <CameraPanel onPostureUpdate={handlePostureUpdate} />
           <div className="side-grid">
-            <PostureStatusCard />
+            <PostureStatusCard
+              state={postureState}
+              confidence={postureConfidence}
+              note={postureNote}
+            />
             <SessionTimer seconds={seconds} />
           </div>
         </div>
