@@ -126,6 +126,11 @@ body {
   background: #334155;
 }
 
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .top-grid {
     grid-template-columns: 1fr;
