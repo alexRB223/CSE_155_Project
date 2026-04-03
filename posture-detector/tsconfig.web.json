@@ -9,13 +9,6 @@
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",
-    "moduleResolution": "Bundler",
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
-    "paths": {
-      "@renderer/*": [
-        "src/renderer/src/*"
-      ]
-    }
+    "moduleResolution": "Bundler"
   }
 }
