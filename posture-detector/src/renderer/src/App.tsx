@@ -9,6 +9,7 @@ import './assets/main.css'
 function App(): React.JSX.Element {
   const [seconds, setSeconds] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
+  const [backendStatus, setBackendStatus] = useState('Checking backend...')
 
   useEffect(() => {
     if (!isRunning) return
@@ -19,6 +20,32 @@ function App(): React.JSX.Element {
 
     return () => window.clearInterval(interval)
   }, [isRunning])
+
+  useEffect(() => {
+    let active = true
+
+    const checkBackend = async (): Promise<void> => {
+      try {
+        const health = await window.api.health()
+
+        if (!active) {
+          return
+        }
+
+        setBackendStatus(health.ok ? 'Backend connected' : 'Backend unavailable')
+      } catch {
+        if (active) {
+          setBackendStatus('Backend unavailable')
+        }
+      }
+    }
+
+    void checkBackend()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleStart = (): void => {
     setIsRunning(true)
@@ -38,6 +65,7 @@ function App(): React.JSX.Element {
       <header className="app-header">
         <h1>Posture Study Companion</h1>
         <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
+        <p className="backend-status">{backendStatus}</p>
       </header>
 
       <main className="dashboard">
