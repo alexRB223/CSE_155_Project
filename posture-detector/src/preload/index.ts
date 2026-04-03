@@ -2,10 +2,13 @@ import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { BackendApi } from '../shared/backend'
 
+import type { CreateSessionInput } from '../shared/backend'
+
 // Custom APIs for renderer
 const api: BackendApi = {
   health: () => electronAPI.ipcRenderer.invoke('backend:health'),
-  listSessions: () => electronAPI.ipcRenderer.invoke('backend:sessions:list')
+  listSessions: () => electronAPI.ipcRenderer.invoke('backend:sessions:list'),
+  createSession: (payload: CreateSessionInput) => electronAPI.ipcRenderer.invoke('backend:sessions:create', payload)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
