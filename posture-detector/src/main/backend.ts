@@ -1,59 +1,53 @@
-import { ipcMain, app } from 'electron'
-import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { ipcMain } from 'electron'
 import type { BackendHealth, SessionPreview, CreateSessionInput } from '../shared/backend'
 
-const STORE_FILE = 'posture-sessions.json'
+const PY_BACKEND_URL = process.env.PY_BACKEND_URL ?? 'http://127.0.0.1:8000'
 
-function getStorePath(): string {
-  return join(app.getPath('userData'), STORE_FILE)
-}
+async function callPythonApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${PY_BACKEND_URL}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    }
+  })
 
-async function readSessions(): Promise<SessionPreview[]> {
-  try {
-    const data = await fs.readFile(getStorePath(), 'utf8')
-    return JSON.parse(data) as SessionPreview[]
-  } catch {
-    return []
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Python backend error (${response.status}): ${errorText}`)
   }
-}
 
-async function writeSessions(sessions: SessionPreview[]): Promise<void> {
-  const path = getStorePath()
-  await fs.writeFile(path, JSON.stringify(sessions, null, 2), 'utf8')
+  return (await response.json()) as T
 }
 
 export function registerBackendIpc(): void {
-  ipcMain.handle('backend:health', (): BackendHealth => ({
-    ok: true,
-    service: 'posture-backend',
-    timestampIso: new Date().toISOString()
-  }))
+  ipcMain.handle('backend:health', async (): Promise<BackendHealth> => {
+    try {
+      return await callPythonApi<BackendHealth>('/health')
+    } catch {
+      return {
+        ok: false,
+        service: 'posture-backend',
+        timestampIso: new Date().toISOString()
+      }
+    }
+  })
 
   ipcMain.handle('backend:sessions:list', async (): Promise<SessionPreview[]> => {
-    const sessions = await readSessions()
-    return sessions.sort((a, b) => new Date(b.endedAtIso).getTime() - new Date(a.endedAtIso).getTime())
+    return callPythonApi<SessionPreview[]>('/sessions')
   })
 
   ipcMain.handle('backend:sessions:create', async (_event, payload: CreateSessionInput): Promise<SessionPreview> => {
-    if (!payload.durationSeconds || payload.durationSeconds < 0) {
+    if (!payload.durationSeconds || payload.durationSeconds <= 0) {
       throw new Error('Invalid duration')
     }
     if (!payload.endedAtIso) {
       throw new Error('Missing endedAtIso')
     }
 
-    const newSession: SessionPreview = {
-      id: randomUUID(),
-      durationSeconds: payload.durationSeconds,
-      endedAtIso: payload.endedAtIso
-    }
-
-    const sessions = await readSessions()
-    sessions.unshift(newSession)
-    await writeSessions(sessions.slice(0, 500))
-
-    return newSession
+    return callPythonApi<SessionPreview>('/sessions/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
   })
 }
