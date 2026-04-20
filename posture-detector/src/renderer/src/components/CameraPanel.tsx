@@ -11,6 +11,7 @@ export type PostureState = 'loading' | 'good' | 'slouching' | 'no-person' | 'err
 
 interface CameraPanelProps {
   onPostureUpdate: (state: PostureState, confidence: number, note: string) => void
+  enabled: boolean
 }
 
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm'
@@ -87,7 +88,7 @@ function evaluatePosture(result: PoseLandmarkerResult): {
   }
 }
 
-function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
+function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -97,6 +98,22 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
   const [cameraReady, setCameraReady] = useState(false)
 
   useEffect(() => {
+    if (!enabled) {
+      onPostureUpdate('loading', 0, 'Camera is turned off')
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+      detectorRef.current?.close()
+      detectorRef.current = null
+
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+
+      setCameraReady(false)
+      return
+    }
+
     let stopped = false
 
     const stopLoop = (): void => {
@@ -213,7 +230,7 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
-  }, [onPostureUpdate])
+  }, [enabled, onPostureUpdate])
 
   return (
     <section className="card">

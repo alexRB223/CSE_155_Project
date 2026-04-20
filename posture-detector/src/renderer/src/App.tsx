@@ -4,6 +4,7 @@ import PostureStatusCard from './components/PostureStatusCard'
 import SessionTimer from './components/SessionTimer'
 import ReminderBanner from './components/ReminderBanner'
 import ControlBar from './components/ControlBar'
+import SettingsPanel from './components/SettingsPanel'
 import './assets/main.css'
 
 function App(): React.JSX.Element {
@@ -13,6 +14,9 @@ function App(): React.JSX.Element {
   const [postureState, setPostureState] = useState<PostureState>('loading')
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
+  const [showSettings, setShowSettings] = useState(false)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [cameraEnabled, setCameraEnabled] = useState(true)
 
   useEffect(() => {
     if (!isRunning) return
@@ -63,11 +67,26 @@ function App(): React.JSX.Element {
     setSeconds(0)
   }
 
-  const handlePostureUpdate = useCallback((state: PostureState, confidence: number, note: string): void => {
-    setPostureState(state)
-    setPostureConfidence(confidence)
-    setPostureNote(note)
-  }, [])
+  const handleToggleSettings = (): void => {
+    setShowSettings((prev) => !prev)
+  }
+
+  const handleToggleNotifications = (): void => {
+    setNotificationsEnabled((prev) => !prev)
+  }
+
+  const handleToggleCamera = (): void => {
+    setCameraEnabled((prev) => !prev)
+  }
+
+  const handlePostureUpdate = useCallback(
+    (state: PostureState, confidence: number, note: string): void => {
+      setPostureState(state)
+      setPostureConfidence(confidence)
+      setPostureNote(note)
+    },
+    []
+  )
 
   return (
     <div className="app-shell">
@@ -79,7 +98,7 @@ function App(): React.JSX.Element {
 
       <main className="dashboard">
         <div className="top-grid">
-          <CameraPanel onPostureUpdate={handlePostureUpdate} />
+          <CameraPanel onPostureUpdate={handlePostureUpdate} enabled={cameraEnabled} />
           <div className="side-grid">
             <PostureStatusCard
               state={postureState}
@@ -97,7 +116,16 @@ function App(): React.JSX.Element {
           onStart={handleStart}
           onPause={handlePause}
           onReset={handleReset}
+          onToggleSettings={handleToggleSettings}
         />
+        {showSettings && (
+          <SettingsPanel
+            notificationsEnabled={notificationsEnabled}
+            cameraEnabled={cameraEnabled}
+            onToggleNotifications={handleToggleNotifications}
+            onToggleCamera={handleToggleCamera}
+          />
+        )}
       </main>
     </div>
   )

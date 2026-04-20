@@ -37,17 +37,20 @@ export function registerBackendIpc(): void {
     return callPythonApi<SessionPreview[]>('/sessions')
   })
 
-  ipcMain.handle('backend:sessions:create', async (_event, payload: CreateSessionInput): Promise<SessionPreview> => {
-    if (!payload.durationSeconds || payload.durationSeconds <= 0) {
-      throw new Error('Invalid duration')
-    }
-    if (!payload.endedAtIso) {
-      throw new Error('Missing endedAtIso')
-    }
+  ipcMain.handle(
+    'backend:sessions:create',
+    async (_event, payload: CreateSessionInput): Promise<SessionPreview> => {
+      if (!payload.durationSeconds || payload.durationSeconds <= 0) {
+        throw new Error('Invalid duration')
+      }
+      if (!payload.endedAtIso) {
+        throw new Error('Missing endedAtIso')
+      }
 
-    return callPythonApi<SessionPreview>('/sessions/create', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
-  })
+      return callPythonApi<SessionPreview>('/sessions/create', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+    }
+  )
 }
