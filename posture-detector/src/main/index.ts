@@ -33,8 +33,10 @@ function stopPython() {
 
   if (process.platform === 'win32' && pythonProcess.pid) {
     spawn('taskkill', ['/PID', String(pythonProcess.pid), '/T', '/F'])
+    console.log(`win32: Killing Python with PID ${pythonProcess.pid}`)
   } else {
     pythonProcess.kill('SIGTERM')
+    console.log(`Not win32: Killing with SIGTERM`)
   }
 
   pythonProcess = null
