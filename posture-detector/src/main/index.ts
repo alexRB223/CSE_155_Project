@@ -3,6 +3,42 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerBackendIpc } from './backend'
+import { spawn, ChildProcess } from 'child_process'
+
+let pythonProcess: ChildProcess | null = null
+
+function startPython() {
+  if (pythonProcess) return
+
+  pythonProcess = spawn('python', ['-u', 'python/main.py'], {
+    windowsHide: true,
+    stdio: 'pipe'
+  })
+
+  pythonProcess.stdout?.on('data', (data) => {
+    console.log(`[py] ${data}`)
+  })
+
+  pythonProcess.stderr?.on('data', (data) => {
+    console.error(`[py-err] ${data}`)
+  })
+
+  pythonProcess.on('close', () => {
+    pythonProcess = null
+  })
+}
+
+function stopPython() {
+  if (!pythonProcess) return
+
+  if (process.platform === 'win32' && pythonProcess.pid) {
+    spawn('taskkill', ['/PID', String(pythonProcess.pid), '/T', '/F'])
+  } else {
+    pythonProcess.kill('SIGTERM')
+  }
+
+  pythonProcess = null
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -50,6 +86,8 @@ app.whenReady().then(() => {
 
   registerBackendIpc()
 
+  startPython()
+
   createWindow()
 
   app.on('activate', function () {
@@ -59,9 +97,8 @@ app.whenReady().then(() => {
 
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
     app.quit()
-  }
+    stopPython()
 })
 
 

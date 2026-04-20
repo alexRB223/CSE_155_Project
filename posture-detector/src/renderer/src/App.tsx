@@ -31,11 +31,14 @@ function App(): React.JSX.Element {
       try {
         const health = await window.api.health()
 
-        if (!active) {
-          return
-        }
+        if (!active) return
 
-        setBackendStatus(health.ok ? 'Backend connected' : 'Backend unavailable')
+        if (health.ok) {
+          setBackendStatus('Backend connected')
+          window.clearInterval(interval)
+        } else {
+          setBackendStatus('Backend unavailable')
+        }
       } catch {
         if (active) {
           setBackendStatus('Backend unavailable')
@@ -43,12 +46,18 @@ function App(): React.JSX.Element {
       }
     }
 
+    const interval = window.setInterval(() => {
+      void checkBackend()
+    }, 2000)
+
     void checkBackend()
 
     return () => {
       active = false
+      window.clearInterval(interval)
     }
   }, [])
+
 
   const handleStart = (): void => {
     setIsRunning(true)
