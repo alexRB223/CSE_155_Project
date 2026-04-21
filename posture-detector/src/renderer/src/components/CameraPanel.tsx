@@ -6,6 +6,8 @@ import {
   type NormalizedLandmark,
   type PoseLandmarkerResult
 } from '@mediapipe/tasks-vision'
+import type { PostureSettings } from '../../../shared/backend'
+import PostureSettingsModal from './PostureSettingsModal'
 
 export type PostureState = 'loading' | 'good' | 'slouching' | 'no-person' | 'error'
 
@@ -36,7 +38,10 @@ function avgVisibility(landmarks: NormalizedLandmark[]): number {
   return total / points.length
 }
 
-function evaluatePosture(result: PoseLandmarkerResult): {
+function evaluatePosture(
+  result: PoseLandmarkerResult,
+  settings: PostureSettings | null
+): {
   state: PostureState
   confidence: number
   note: string
@@ -65,18 +70,30 @@ function evaluatePosture(result: PoseLandmarkerResult): {
   }
 
   const confidence = avgVisibility(landmarks)
-  const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2
-  const earMidY = (leftEar.y + rightEar.y) / 2
-  const shoulderTilt = Math.abs(leftShoulder.y - rightShoulder.y)
 
-  const headTooLow = earMidY > shoulderMidY - 0.02
-  const shouldersUneven = shoulderTilt > 0.05
+  if (!settings || !settings.shoulders || !settings.ears) {
+    return {
+      state: 'loading',
+      confidence,
+      note: 'Loading posture settings...'
+    }
+  }
 
-  if (headTooLow || shouldersUneven) {
+  const isOut = (pt: NormalizedLandmark, config: { idealY: number; tolerance: number }): boolean => {
+    return Math.abs(pt.y - config.idealY) > config.tolerance
+  }
+
+  const outPoints: string[] = []
+  if (isOut(leftShoulder, settings.shoulders)) outPoints.push('Left Shoulder')
+  if (isOut(rightShoulder, settings.shoulders)) outPoints.push('Right Shoulder')
+  if (isOut(leftEar, settings.ears)) outPoints.push('Left Ear')
+  if (isOut(rightEar, settings.ears)) outPoints.push('Right Ear')
+
+  if (outPoints.length > 0) {
     return {
       state: 'slouching',
       confidence,
-      note: 'Raise your chest and keep shoulders level.'
+      note: `Adjust your posture. Keep within bounds for: ${outPoints.join(', ')}`
     }
   }
 
@@ -94,7 +111,31 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
   const detectorRef = useRef<PoseLandmarker | null>(null)
   const rafRef = useRef<number | null>(null)
   const lastEmitRef = useRef(0)
+
   const [cameraReady, setCameraReady] = useState(false)
+  const [settings, setSettings] = useState<PostureSettings | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+
+  const settingsRef = useRef<PostureSettings | null>(null)
+  const lastLandmarksRef = useRef<NormalizedLandmark[] | null>(null)
+
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
+
+  useEffect(() => {
+    window.api.getSettings().then((s) => {
+      setSettings(s)
+    }).catch(console.error)
+  }, [])
+
+  const handleSaveSettings = async (newSettings: PostureSettings): Promise<void> => {
+    await window.api.updateSettings(newSettings)
+    setSettings(newSettings)
+    setShowSettings(false)
+  }
+
+
 
   useEffect(() => {
     let stopped = false
@@ -127,6 +168,28 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
       }
 
       context.clearRect(0, 0, width, height)
+
+      // Draw bounding tolerances
+      const currentSettings = settingsRef.current
+      if (currentSettings && currentSettings.shoulders && currentSettings.ears) {
+        const drawBand = (conf: { idealY: number; tolerance: number }, color: string): void => {
+          context.fillStyle = color
+          const y1 = (conf.idealY - conf.tolerance) * height
+          const y2 = (conf.idealY + conf.tolerance) * height
+          const rectHeight = y2 - y1
+          context.fillRect(0, y1, width, rectHeight)
+
+          context.beginPath()
+          context.strokeStyle = color.replace('0.15', '0.6')
+          context.moveTo(0, conf.idealY * height)
+          context.lineTo(width, conf.idealY * height)
+          context.stroke()
+        }
+
+        // Draw for combined shoulders and ears
+        drawBand(currentSettings.shoulders, 'rgba(56, 189, 248, 0.15)') // Light blue
+        drawBand(currentSettings.ears, 'rgba(167, 139, 250, 0.15)') // Purple
+      }
 
       if (result.landmarks.length > 0) {
         const drawingUtils = new DrawingUtils(context)
@@ -184,11 +247,15 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
 
           if (activeVideo.readyState >= 2) {
             const result = activeDetector.detectForVideo(activeVideo, performance.now())
+            if (result.landmarks.length > 0) {
+              lastLandmarksRef.current = result.landmarks[0]
+            }
+
             draw(result)
 
             const now = Date.now()
             if (now - lastEmitRef.current > 250) {
-              const posture = evaluatePosture(result)
+              const posture = evaluatePosture(result, settingsRef.current)
               onPostureUpdate(posture.state, posture.confidence, posture.note)
               lastEmitRef.current = now
             }
@@ -216,9 +283,17 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
   }, [onPostureUpdate])
 
   return (
-    <section className="card">
-      <h2>Camera Preview</h2>
-      <div className="camera-live-frame">
+    <section className="card relative">
+      <div className="flex justify-between items-center mb-4 relative z-10 w-full h-[32px]">
+        <h2 className="m-0 absolute left-0 top-[4px]">Camera Preview</h2>
+      </div>
+      <div className="camera-live-frame mt-4 relative">
+        <button 
+          className="settings-btn" 
+          onClick={() => setShowSettings(true)}
+        >
+          Camera Settings
+        </button>
         <video className="camera-video" ref={videoRef} autoPlay playsInline muted />
         <canvas className="camera-overlay" ref={canvasRef} />
         {!cameraReady && (
@@ -230,6 +305,16 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
           </div>
         )}
       </div>
+
+      {showSettings && (
+        <PostureSettingsModal
+          initialSettings={settings}
+          onClose={() => setShowSettings(false)}
+          onSave={handleSaveSettings}
+          stream={streamRef.current}
+          latestLandmarksRef={lastLandmarksRef}
+        />
+      )}
     </section>
   )
 }

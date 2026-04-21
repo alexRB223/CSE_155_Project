@@ -4,6 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerBackendIpc } from './backend'
 import { spawn, ChildProcess } from 'child_process'
+import { getSettings, updateSettings } from './settings'
+import type { PostureSettings } from '../shared/backend'
 
 let pythonProcess: ChildProcess | null = null
 
@@ -86,10 +88,11 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  ipcMain.handle('backend:settings:get', () => getSettings())
+  ipcMain.handle('backend:settings:update', (_event, settings: PostureSettings) => updateSettings(settings))
+
   registerBackendIpc()
-
   startPython()
-
   createWindow()
 
   app.on('activate', function () {
