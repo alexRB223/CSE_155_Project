@@ -1,14 +1,18 @@
 type SettingsPanelProps = {
   notificationsEnabled: boolean
+  soundAlertsEnabled: boolean
   cameraEnabled: boolean
   onToggleNotifications: () => void
+  onToggleSoundAlerts: () => void
   onToggleCamera: () => void
 }
 
 function SettingsPanel({
   notificationsEnabled,
+  soundAlertsEnabled,
   cameraEnabled,
   onToggleNotifications,
+  onToggleSoundAlerts,
   onToggleCamera
 }: SettingsPanelProps): React.JSX.Element {
   return (
@@ -21,7 +25,10 @@ function SettingsPanel({
             <h3>Notifications</h3>
             <p>Placeholder toggle for future reminder notifications.</p>
           </div>
-          <button onClick={onToggleNotifications}>{notificationsEnabled ? 'On' : 'Off'}</button>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={notificationsEnabled} onChange={onToggleNotifications} />
+            <span className="toggle-slider"></span>
+          </label>
         </div>
 
         <div className="setting-row">
@@ -29,8 +36,23 @@ function SettingsPanel({
             <h3>Camera</h3>
             <p>Enable or disable the camera preview panel.</p>
           </div>
-          <button onClick={onToggleCamera}>{cameraEnabled ? 'On' : 'Off'}</button>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={cameraEnabled} onChange={onToggleCamera} />
+            <span className="toggle-slider"></span>
+          </label>
         </div>
+
+        <div className="setting-row">
+          <div>
+            <h3>Sound Alerts</h3>
+            <p>Play a short tone when slouching is detected.</p>
+          </div>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={soundAlertsEnabled} onChange={onToggleSoundAlerts} />
+            <span className="toggle-slider"></span>
+          </label>
+        </div>
+
       </div>
     </section>
   )

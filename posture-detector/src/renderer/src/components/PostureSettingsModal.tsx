@@ -15,6 +15,8 @@ const defaultSettings: PostureSettings = {
   ears: { idealY: 0.35, tolerance: 0.05 }
 }
 
+const defaultGlobalTolerance = 0.05
+
 const IDX = {
   leftShoulder: 11,
   rightShoulder: 12,
@@ -24,7 +26,7 @@ const IDX = {
 
 export default function PostureSettingsModal({ initialSettings, onClose, onSave, stream, latestLandmarksRef }: Props): React.JSX.Element {
   const [settings, setSettings] = useState<PostureSettings>(initialSettings || defaultSettings)
-  const [globalTolerance, setGlobalTolerance] = useState(0.05)
+  const [globalTolerance, setGlobalTolerance] = useState(defaultGlobalTolerance)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -145,12 +147,20 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
     }))
   }
 
+  const handleResetToDefaults = (): void => {
+    setSettings({
+      shoulders: { ...defaultSettings.shoulders },
+      ears: { ...defaultSettings.ears }
+    })
+    setGlobalTolerance(defaultGlobalTolerance)
+  }
+
   return (
     <div className="settings-modal-overlay">
       <div className="settings-modal p-6 rounded-lg text-white">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Posture Settings</h2>
-          <button className="text-slate-400 hover:text-white transition" onClick={onClose}>
+          <button type="button" className="settings-close-btn" onClick={onClose}>
             ✕
           </button>
         </div>
@@ -177,7 +187,7 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
               </p>
               <button
                 onClick={handleLocalQuickSet}
-                className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded transition shadow-lg hover:shadow-cyan-500/20"
+                className="settings-action-btn settings-action-btn-primary w-full"
               >
                 Set Current as Perfect
               </button>
@@ -249,16 +259,16 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-700/50">
+        <div className="mt-6 flex justify-end gap-[96px] pt-4 border-t border-slate-700/50">
           <button
-            onClick={onClose}
-            className="px-5 py-2 border border-slate-500 rounded text-sm hover:bg-slate-700 transition"
+            onClick={handleResetToDefaults}
+            className="settings-action-btn settings-action-btn-secondary"
           >
-            Cancel
+            Reset to Defaults
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-semibold text-sm transition shadow-lg"
+            className="settings-action-btn settings-action-btn-primary"
           >
             Save Settings
           </button>
