@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import CameraPanel, { type PostureState } from './components/CameraPanel'
 import PostureStatusCard from './components/PostureStatusCard'
-import SessionTimer from './components/SessionTimer'
+import SessionSummaryPanel from './components/SessionSummaryPanel'
 import ReminderBanner from './components/ReminderBanner'
 import ControlBar from './components/ControlBar'
 import SettingsPanel from './components/SettingsPanel'
@@ -16,7 +16,9 @@ function App(): React.JSX.Element {
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
   const [showSettings, setShowSettings] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(true)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   useEffect(() => {
     if (!isRunning) return
@@ -35,11 +37,14 @@ function App(): React.JSX.Element {
       try {
         const health = await window.api.health()
 
-        if (!active) {
-          return
-        }
+        if (!active) return
 
-        setBackendStatus(health.ok ? 'Backend connected' : 'Backend unavailable')
+        if (health.ok) {
+          setBackendStatus('Backend connected')
+          window.clearInterval(interval)
+        } else {
+          setBackendStatus('Backend unavailable')
+        }
       } catch {
         if (active) {
           setBackendStatus('Backend unavailable')
@@ -47,14 +52,21 @@ function App(): React.JSX.Element {
       }
     }
 
+    const interval = window.setInterval(() => {
+      void checkBackend()
+    }, 2000)
+
     void checkBackend()
 
     return () => {
       active = false
+      window.clearInterval(interval)
     }
   }, [])
 
+
   const handleStart = (): void => {
+    void primeAlertAudio()
     setIsRunning(true)
   }
 
@@ -78,6 +90,97 @@ function App(): React.JSX.Element {
   const handleToggleCamera = (): void => {
     setCameraEnabled((prev) => !prev)
   }
+
+  const getAudioContext = useCallback((): AudioContext | null => {
+    if (audioContextRef.current) {
+      return audioContextRef.current
+    }
+
+    const AudioContextCtor = window.AudioContext || (window as typeof window & {
+      webkitAudioContext?: typeof AudioContext
+    }).webkitAudioContext
+
+    if (!AudioContextCtor) {
+      return null
+    }
+
+    audioContextRef.current = new AudioContextCtor()
+    return audioContextRef.current
+  }, [])
+
+  const primeAlertAudio = useCallback(async (): Promise<void> => {
+    const context = getAudioContext()
+    if (!context) {
+      return
+    }
+
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
+  }, [getAudioContext])
+
+  const handleToggleSoundAlerts = (): void => {
+    setSoundAlertsEnabled((prev) => {
+      const next = !prev
+      if (next) {
+        void primeAlertAudio()
+      }
+      return next
+    })
+  }
+
+  const playAlertTone = useCallback(async (): Promise<void> => {
+    const context = getAudioContext()
+    if (!context) {
+      return
+    }
+
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
+
+    const oscillator = context.createOscillator()
+    const gainNode = context.createGain()
+
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(1046, context.currentTime)
+    gainNode.gain.setValueAtTime(0.0001, context.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.03)
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35)
+
+    oscillator.connect(gainNode)
+    gainNode.connect(context.destination)
+
+    oscillator.start()
+    oscillator.stop(context.currentTime + 0.36)
+  }, [getAudioContext])
+
+  useEffect(() => {
+    if (!soundAlertsEnabled || !cameraEnabled || postureState !== 'slouching') {
+      return
+    }
+
+    // Beep immediately when entering/being in slouching state,
+    // then continue at a gentle interval until posture improves.
+    void playAlertTone()
+
+    const intervalId = window.setInterval(() => {
+      void playAlertTone()
+    }, 4000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [cameraEnabled, playAlertTone, postureState, soundAlertsEnabled])
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        void audioContextRef.current.close()
+        audioContextRef.current = null
+      }
+    }
+  }, [])
 
   const handlePostureUpdate = useCallback(
     (state: PostureState, confidence: number, note: string): void => {
@@ -105,7 +208,14 @@ function App(): React.JSX.Element {
               confidence={postureConfidence}
               note={postureNote}
             />
-            <SessionTimer seconds={seconds} />
+            <SessionSummaryPanel
+              seconds={seconds}
+              isRunning={isRunning}
+              postureState={postureState}
+              postureConfidence={postureConfidence}
+              cameraEnabled={cameraEnabled}
+              notificationsEnabled={notificationsEnabled}
+            />
           </div>
         </div>
 
@@ -121,8 +231,10 @@ function App(): React.JSX.Element {
         {showSettings && (
           <SettingsPanel
             notificationsEnabled={notificationsEnabled}
+            soundAlertsEnabled={soundAlertsEnabled}
             cameraEnabled={cameraEnabled}
             onToggleNotifications={handleToggleNotifications}
+            onToggleSoundAlerts={handleToggleSoundAlerts}
             onToggleCamera={handleToggleCamera}
           />
         )}

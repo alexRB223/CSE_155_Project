@@ -15,14 +15,18 @@ function ControlBar({
 }: ControlBarProps): React.JSX.Element {
   return (
     <section className="card controls">
-      <button onClick={onStart} disabled={isRunning}>
+      <button onClick={onStart} disabled={isRunning} title="Start a new session">
         Start
       </button>
-      <button onClick={onPause} disabled={!isRunning}>
+      <button onClick={onPause} disabled={!isRunning} title="Pause the current session">
         Pause
       </button>
-      <button onClick={onReset}>Reset</button>
-      <button onClick={onToggleSettings}>Settings</button>
+      <button onClick={onReset} title="Reset the timer and session">
+         Reset
+      </button>
+      <button onClick={onToggleSettings} title="Open settings">
+        Settings
+      </button>
     </section>
   )
 }

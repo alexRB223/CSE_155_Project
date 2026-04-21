@@ -15,8 +15,20 @@ export interface CreateSessionInput {
   endedAtIso: string
 }
 
+export interface PointConfig {
+  idealY: number
+  tolerance: number
+}
+
+export interface PostureSettings {
+  shoulders: PointConfig
+  ears: PointConfig
+}
+
 export interface BackendApi {
   health: () => Promise<BackendHealth>
   listSessions: () => Promise<SessionPreview[]>
   createSession: (payload: CreateSessionInput) => Promise<SessionPreview>
+  getSettings: () => Promise<PostureSettings>
+  updateSettings: (settings: PostureSettings) => Promise<boolean>
 }
