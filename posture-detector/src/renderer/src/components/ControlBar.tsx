@@ -3,9 +3,16 @@ type ControlBarProps = {
   onStart: () => void
   onPause: () => void
   onReset: () => void
+  onToggleSettings: () => void
 }
 
-function ControlBar({ isRunning, onStart, onPause, onReset }: ControlBarProps): React.JSX.Element {
+function ControlBar({
+  isRunning,
+  onStart,
+  onPause,
+  onReset,
+  onToggleSettings
+}: ControlBarProps): React.JSX.Element {
   return (
     <section className="card controls">
       <button onClick={onStart} disabled={isRunning}>
@@ -15,7 +22,7 @@ function ControlBar({ isRunning, onStart, onPause, onReset }: ControlBarProps): 
         Pause
       </button>
       <button onClick={onReset}>Reset</button>
-      <button>Settings</button>
+      <button onClick={onToggleSettings}>Settings</button>
     </section>
   )
 }
