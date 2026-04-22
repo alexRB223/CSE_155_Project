@@ -22,8 +22,8 @@ function SettingsPanel({
       <div className="settings-grid">
         <div className="setting-row">
           <div>
-            <h3>Notifications</h3>
-            <p>Placeholder toggle for future reminder notifications.</p>
+            <h3>Visual Alerts</h3>
+            <p>Toggle for Visual reminder notifications.</p>
           </div>
           <label className="toggle-switch">
             <input type="checkbox" checked={notificationsEnabled} onChange={onToggleNotifications} />
