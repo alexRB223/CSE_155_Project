@@ -4,11 +4,21 @@ interface PostureStatusCardProps {
   state: PostureState
   confidence: number
   note: string
+  visualAlertsEnabled: boolean
 }
 
-function PostureStatusCard({ state, confidence, note }: PostureStatusCardProps): React.JSX.Element {
+function PostureStatusCard({
+  state,
+  confidence,
+  note,
+  visualAlertsEnabled
+}: PostureStatusCardProps): React.JSX.Element {
+  const alertsDisabled = !visualAlertsEnabled
+
   const label =
-    state === 'good'
+    alertsDisabled
+      ? 'Visual alerts are off'
+      : state === 'good'
       ? 'Good posture'
       : state === 'slouching'
         ? 'Slouching detected'
@@ -19,7 +29,9 @@ function PostureStatusCard({ state, confidence, note }: PostureStatusCardProps):
             : 'Analyzing posture...'
 
   const statusClass =
-    state === 'good'
+    alertsDisabled
+      ? 'pending'
+      : state === 'good'
       ? 'good'
       : state === 'slouching'
         ? 'bad'
@@ -27,11 +39,13 @@ function PostureStatusCard({ state, confidence, note }: PostureStatusCardProps):
           ? 'error'
           : 'pending'
 
+  const detailText = alertsDisabled ? 'Turn on Visual Alerts in Settings to show live warning text.' : note
+
   return (
     <section className="card">
       <h2>Posture Status</h2>
       <p className={`status ${statusClass}`}>{label}</p>
-      <p>{note}</p>
+      <p>{detailText}</p>
       <small>Confidence: {Math.round(confidence * 100)}%</small>
     </section>
   )

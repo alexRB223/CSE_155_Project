@@ -207,6 +207,7 @@ function App(): React.JSX.Element {
               state={postureState}
               confidence={postureConfidence}
               note={postureNote}
+              visualAlertsEnabled={notificationsEnabled}
             />
             <SessionSummaryPanel
               seconds={seconds}
@@ -219,7 +220,7 @@ function App(): React.JSX.Element {
           </div>
         </div>
 
-        <ReminderBanner />
+        {notificationsEnabled && <ReminderBanner />}
 
         <ControlBar
           isRunning={isRunning}
