@@ -10,7 +10,8 @@ const api: BackendApi = {
   listSessions: () => electronAPI.ipcRenderer.invoke('backend:sessions:list'),
   createSession: (payload: CreateSessionInput) => electronAPI.ipcRenderer.invoke('backend:sessions:create', payload),
   getSettings: () => electronAPI.ipcRenderer.invoke('backend:settings:get'),
-  updateSettings: (settings: PostureSettings) => electronAPI.ipcRenderer.invoke('backend:settings:update', settings)
+  updateSettings: (settings: PostureSettings) => electronAPI.ipcRenderer.invoke('backend:settings:update', settings),
+  deleteSettings: () => electronAPI.ipcRenderer.invoke('backend:settings:delete')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

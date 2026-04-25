@@ -6,6 +6,7 @@ interface Props {
   initialSettings: PostureSettings | null
   onClose: () => void
   onSave: (settings: PostureSettings) => void
+  onDelete: () => Promise<void>
   stream: MediaStream | null
   latestLandmarksRef: React.MutableRefObject<NormalizedLandmark[] | null>
 }
@@ -24,18 +25,82 @@ const IDX = {
   rightEar: 8
 } as const
 
-export default function PostureSettingsModal({ initialSettings, onClose, onSave, stream, latestLandmarksRef }: Props): React.JSX.Element {
+function withinMargin(a: number, b: number, epsilon = 0.002): boolean {
+  return Math.abs(a - b) < epsilon
+}
+
+function getTrackedSettingsFromLandmarks(
+  lm: NormalizedLandmark[],
+  prev: PostureSettings
+): PostureSettings | null {
+  const leftShoulder = lm[IDX.leftShoulder]
+  const rightShoulder = lm[IDX.rightShoulder]
+  const leftEar = lm[IDX.leftEar]
+  const rightEar = lm[IDX.rightEar]
+
+  if (!leftShoulder || !rightShoulder || !leftEar || !rightEar) {
+    return null
+  }
+
+  const avgShoulderY = (leftShoulder.y + rightShoulder.y) / 2
+  const avgEarY = (leftEar.y + rightEar.y) / 2
+
+  return {
+    shoulders: {
+      ...prev.shoulders,
+      idealY: avgShoulderY
+    },
+    ears: {
+      ...prev.ears,
+      idealY: avgEarY
+    }
+  }
+}
+
+export default function PostureSettingsModal({
+  initialSettings,
+  onClose,
+  onSave,
+  onDelete,
+  stream,
+  latestLandmarksRef
+}: Props): React.JSX.Element {
+  console.log('PostureSettingsModal render')
   const [settings, setSettings] = useState<PostureSettings>(initialSettings || defaultSettings)
-  const [globalTolerance, setGlobalTolerance] = useState(defaultGlobalTolerance)
+  const [globalTolerance, setGlobalTolerance] = useState(0.05)
+  const [followLandmarks, setFollowLandmarks] = useState(initialSettings ? false : true)
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const rafRef = useRef<number | null>(null)
+
+  const drawRafRef = useRef<number | null>(null)
+  const trackingRafRef = useRef<number | null>(null)
 
   const settingsRef = useRef<PostureSettings>(settings)
+  const followLandmarksRef = useRef<boolean>(followLandmarks)
+
+  const [statusMessage, setStatusMessage] = useState(
+    initialSettings ? 'Locked for manual adjustment' : 'Following detected landmarks'
+  )
+  const [statusTone, setStatusTone] = useState<'neutral' | 'success' | 'warning' | 'error'>('neutral')
+
+  const setFeedback = (
+    message: string,
+    tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral'
+  ): void => {
+    setStatusMessage(message)
+    setStatusTone(tone)
+  }
 
   useEffect(() => {
-    if (initialSettings && initialSettings.shoulders && initialSettings.ears) {
+    if (initialSettings?.shoulders && initialSettings?.ears) {
       setSettings(initialSettings)
+      setGlobalTolerance(initialSettings.shoulders.tolerance)
+      setFollowLandmarks(false)
+    } else {
+      setSettings(defaultSettings)
+      setGlobalTolerance(defaultSettings.shoulders.tolerance)
+      setFollowLandmarks(true)
     }
   }, [initialSettings])
 
@@ -44,67 +109,130 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
   }, [settings])
 
   useEffect(() => {
+    followLandmarksRef.current = followLandmarks
+  }, [followLandmarks])
+
+  useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream
     }
+  }, [stream])
 
+  useEffect(() => {
+    const syncTrackedBounds = (): void => {
+      const landmarks = latestLandmarksRef.current
+
+      if (!landmarks) {
+        console.log('[PostureSettingsModal] no landmarks yet')
+      } else if (!followLandmarksRef.current) {
+        console.log('[PostureSettingsModal] landmarks available, but follow is locked')
+      } else {
+        console.log('[PostureSettingsModal] following landmarks', {
+          leftShoulder: landmarks[IDX.leftShoulder],
+          rightShoulder: landmarks[IDX.rightShoulder],
+          leftEar: landmarks[IDX.leftEar],
+          rightEar: landmarks[IDX.rightEar]
+        })
+      }
+
+
+      if (landmarks && followLandmarksRef.current) {
+        setSettings((prev) => {
+          const next = getTrackedSettingsFromLandmarks(landmarks, prev)
+          if (!next) return prev
+
+          const shouldersChanged = !withinMargin(prev.shoulders.idealY, next.shoulders.idealY)
+          const earsChanged = !withinMargin(prev.ears.idealY, next.ears.idealY)
+
+          if (!shouldersChanged && !earsChanged) {
+            return prev
+          }
+
+          return next
+        })
+      }
+
+      trackingRafRef.current = requestAnimationFrame(syncTrackedBounds)
+    }
+
+    trackingRafRef.current = requestAnimationFrame(syncTrackedBounds)
+
+    return () => {
+      if (trackingRafRef.current !== null) {
+        cancelAnimationFrame(trackingRafRef.current)
+      }
+    }
+  }, [latestLandmarksRef])
+
+  useEffect(() => {
     const drawLoop = (): void => {
       const video = videoRef.current
       const canvas = canvasRef.current
 
       if (!video || !canvas || video.readyState < 2) {
-        rafRef.current = requestAnimationFrame(drawLoop)
+        drawRafRef.current = requestAnimationFrame(drawLoop)
         return
       }
 
       const width = video.videoWidth
       const height = video.videoHeight
+
       if (width && height) {
-        canvas.width = width
-        canvas.height = height
+        if (canvas.width !== width) canvas.width = width
+        if (canvas.height !== height) canvas.height = height
+
         const ctx = canvas.getContext('2d')
+
         if (ctx) {
           ctx.clearRect(0, 0, width, height)
 
           const currentSettings = settingsRef.current
-          if (currentSettings && currentSettings.shoulders && currentSettings.ears) {
-            const drawBand = (conf: { idealY: number; tolerance: number }, color: string): void => {
-              ctx.fillStyle = color
-              const y1 = (conf.idealY - conf.tolerance) * height
-              const y2 = (conf.idealY + conf.tolerance) * height
-              const rectHeight = y2 - y1
-              ctx.fillRect(0, y1, width, rectHeight)
 
-              ctx.beginPath()
-              ctx.strokeStyle = color.replace('0.15', '0.6')
-              ctx.moveTo(0, conf.idealY * height)
-              ctx.lineTo(width, conf.idealY * height)
-              ctx.stroke()
-            }
+          const drawBand = (conf: { idealY: number; tolerance: number }, color: string): void => {
+            const y1 = Math.max(0, (conf.idealY - conf.tolerance) * height)
+            const y2 = Math.min(height, (conf.idealY + conf.tolerance) * height)
+            const rectHeight = Math.max(0, y2 - y1)
 
-            drawBand(currentSettings.shoulders, 'rgba(56, 189, 248, 0.15)') // Shoulders band
-            drawBand(currentSettings.ears, 'rgba(167, 139, 250, 0.15)') // Ears band
+            ctx.fillStyle = color
+            ctx.fillRect(0, y1, width, rectHeight)
+
+            ctx.beginPath()
+            ctx.strokeStyle = color.replace('0.15', '0.6')
+            ctx.lineWidth = 2
+            ctx.moveTo(0, conf.idealY * height)
+            ctx.lineTo(width, conf.idealY * height)
+            ctx.stroke()
           }
+
+          drawBand(currentSettings.shoulders, 'rgba(56, 189, 248, 0.15)')
+          drawBand(currentSettings.ears, 'rgba(167, 139, 250, 0.15)')
 
           const landmarks = latestLandmarksRef.current
           if (landmarks) {
             const drawingUtils = new DrawingUtils(ctx)
-            drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: '#67e8f9', lineWidth: 3 })
-            drawingUtils.drawLandmarks(landmarks, { color: '#f8fafc', radius: 2.5 })
+            drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
+              color: '#67e8f9',
+              lineWidth: 3
+            })
+            drawingUtils.drawLandmarks(landmarks, {
+              color: '#f8fafc',
+              radius: 2.5
+            })
           }
         }
       }
-      rafRef.current = requestAnimationFrame(drawLoop)
+
+      drawRafRef.current = requestAnimationFrame(drawLoop)
     }
 
-    drawLoop()
+    drawRafRef.current = requestAnimationFrame(drawLoop)
 
     return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
+      if (drawRafRef.current !== null) {
+        cancelAnimationFrame(drawRafRef.current)
       }
     }
-  }, [stream, latestLandmarksRef])
+  }, [latestLandmarksRef])
 
   const handlePointChange = (
     point: keyof PostureSettings,
@@ -129,22 +257,74 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
     }))
   }
 
-  const handleSave = (): void => {
-    onSave(settings)
+  const handleToggleFollow = (): void => {
+    if (followLandmarksRef.current) {
+      setFollowLandmarks(false)
+      setFeedback('Bounds locked for manual adjustment', 'neutral')
+      return
+    }
+
+    const lm = latestLandmarksRef.current
+    if (lm) {
+      const next = getTrackedSettingsFromLandmarks(lm, settingsRef.current)
+      if (next) {
+        setSettings(next)
+      }
+    }
+
+    setFollowLandmarks(true)
+    setFeedback('Following detected landmarks, lock or set before exiting', 'warning')
   }
 
   const handleLocalQuickSet = (): void => {
     const lm = latestLandmarksRef.current
     if (!lm) return
 
-    const avgShoulderY = (lm[IDX.leftShoulder].y + lm[IDX.rightShoulder].y) / 2
-    const avgEarY = (lm[IDX.leftEar].y + lm[IDX.rightEar].y) / 2
+    const next = getTrackedSettingsFromLandmarks(lm, settingsRef.current)
+    if (!next) return
 
-    setSettings((prev) => ({
-      ...prev,
-      shoulders: { ...prev.shoulders, idealY: avgShoulderY },
-      ears: { ...prev.ears, idealY: avgEarY }
-    }))
+    setSettings(next)
+
+    if (followLandmarksRef.current) {
+      setFollowLandmarks(false)
+    }
+    setFeedback('Bounds set to current position', 'success')
+  }
+
+  const handleSave = async (): Promise<void> => {
+    try {
+      await onSave(settingsRef.current)
+      setFeedback('Settings saved', 'success')
+    } catch (err) {
+      console.error(err)
+      setFeedback('Failed to save settings', 'error')
+    }
+  }
+
+  const handleDelete = async (): Promise<void> => {
+    const confirmed = window.confirm(
+      'Delete saved posture settings? This will remove your saved calibration.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      await onDelete()
+      setFollowLandmarks(true)
+      setFeedback('Saved settings cleared', 'success')
+    } catch (err) {
+      console.error('Failed to delete saved posture settings', err)
+      setFeedback('Failed to clear saved settings', 'warning')
+    }
+  }
+
+  const handleClose = (): void => {
+    if (followLandmarks){
+      setFeedback('Failed to close, lock bounds before closing', 'error')
+      return
+    } else {
+      onClose()
+    }
   }
 
   const handleResetToDefaults = (): void => {
@@ -159,14 +339,13 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
     <div className="settings-modal-overlay">
       <div className="settings-modal p-6 rounded-lg text-white">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Posture Settings</h2>
-          <button type="button" className="settings-close-btn" onClick={onClose}>
+          <h2 className="text-xl font-bold">Posture Detection Settings</h2>
+          <button className="text-slate-400 hover:text-white transition" onClick={handleClose}>
             ✕
           </button>
         </div>
 
         <div className="settings-split-layout">
-          {/* LEFT COL: Camera & Quick Set */}
           <div className="settings-left-col">
             <div className="mini-camera-container mb-4 shadow-inner rounded-md">
               <div className="mini-camera-wrapper">
@@ -181,22 +360,50 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
             </div>
 
             <div className="p-4 bg-slate-700/50 rounded-md border border-slate-600/50">
-              <h3 className="font-semibold mb-2 text-cyan-300">Quick Set</h3>
+              <h3 className="font-semibold mb-2 text-cyan-300">Intructions</h3>
               <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                Sit in your ideal posture, then click the button below to map the bounds locally. Adjust sliders to refine, then save.
+                Keep your shoulders and head in frame.<br/>
+                Lock the bounds or set the bounds' position when in desired location.
+                Adjust manually for fine tune control.
+                <br/>Remember to save your settings.
               </p>
-              <button
-                onClick={handleLocalQuickSet}
-                className="settings-action-btn settings-action-btn-primary w-full"
-              >
-                Set Current as Perfect
-              </button>
             </div>
           </div>
 
-          {/* RIGHT COL: Controls */}
-          <div className="settings-right-col space-y-4 max-h-[65vh] overflow-y-auto pr-3 custom-scrollbar">
+          <div className="settings-right-col space-y-2 overflow-y-auto pr-1 custom-scrollbar">
             <div className="border border-slate-600 bg-slate-800/50 p-4 rounded-md mb-2">
+              <div className="flex flex-col gap-3 items-center justify-center">
+                <button
+                  onClick={handleToggleFollow}
+                  className={`w-[90%] text-white font-semibold py-1.5 px-4 rounded transition shadow-lg ${
+                    followLandmarks
+                      ? 'bg-amber-600 hover:bg-amber-500'
+                      : 'bg-cyan-600 hover:bg-cyan-500'
+                  }`}
+                >
+                  {followLandmarks ? 'Lock Bounds' : 'Unlock Bounds'}
+                </button>
+
+                <button
+                  onClick={handleLocalQuickSet}
+                  className="w-[90%] bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-1.5
+                             px-4 rounded transition shadow-lg hover:shadow-cyan-500/20"
+                >
+                  Set Bounds To Current Position
+                </button>
+              </div>
+
+              <p
+                className={`text-s mt-3
+                  ${statusTone === 'success' ? 'text-emerald-300'
+                  : statusTone === 'warning' ? 'text-amber-300'
+                  : statusTone === 'error' ? 'text-red-300'
+                  : 'text-slate-400'}`}
+              >
+                {statusMessage}
+              </p>
+            </div>
+            <div className="bg-slate-700/80 p-3 rounded-md border border-slate-600">
               <h3 className="font-semibold mb-2 text-slate-100">Global Tolerance Offset</h3>
               <div className="flex items-center gap-4">
                 <input
@@ -206,21 +413,24 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
                   step="0.01"
                   value={globalTolerance}
                   onChange={handleGlobalToleranceChange}
-                  className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                  className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
                 />
-                <span className="text-sm font-mono w-12 text-right bg-slate-900 px-2 rounded border border-slate-600">
+                <span className="text-xs font-mono w-10 text-right text-slate-300">
                   {globalTolerance.toFixed(2)}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Adjusts the acceptable deviation range for all points.</p>
+              <p className="text-xs text-slate-400 mt-2">
+                Adjusts the acceptable deviation range for all bounds.
+              </p>
             </div>
 
-            {(['shoulders', 'ears'] as const).map((point) => (
+            {(['ears', 'shoulders'] as const).map((point) => (
               settings[point] && (
                 <div key={point} className="bg-slate-700/80 p-3 rounded-md border border-slate-600">
                   <h4 className="capitalize font-medium mb-3 text-slate-200">
                     {point}
                   </h4>
+
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between gap-4">
                       <label className="text-xs text-slate-400 font-medium w-20">Ideal Y:</label>
@@ -233,10 +443,11 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
                         onChange={(e) => handlePointChange(point, 'idealY', parseFloat(e.target.value))}
                         className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
                       />
-                      <span className="text-xs font-mono w-10 text-right text-cyan-300">
+                      <span className="text-xs font-mono w-10 text-right text-slate-300">
                         {settings[point].idealY.toFixed(2)}
                       </span>
                     </div>
+
                     <div className="flex items-center justify-between gap-4">
                       <label className="text-xs text-slate-400 font-medium w-20">Tolerance:</label>
                       <input
@@ -259,18 +470,24 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-[96px] pt-4 border-t border-slate-700/50">
-          <button
-            onClick={handleResetToDefaults}
-            className="settings-action-btn settings-action-btn-secondary"
-          >
-            Reset to Defaults
-          </button>
+        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-700/50">
           <button
             onClick={handleSave}
             className="settings-action-btn settings-action-btn-primary"
           >
             Save Settings
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-5 py-2 border border-slate-500 rounded text-sm hover:bg-slate-700 transition"
+          >
+            Clear Saved Settings
+          </button>
+          <button
+            onClick={handleClose}
+            className="px-5 py-2 border border-slate-500 rounded text-sm hover:bg-slate-700 transition"
+          >
+            Close
           </button>
         </div>
       </div>

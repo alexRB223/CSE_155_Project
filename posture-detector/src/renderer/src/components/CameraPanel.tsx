@@ -76,7 +76,7 @@ function evaluatePosture(
     return {
       state: 'loading',
       confidence,
-      note: 'Loading posture settings...'
+      note: 'Checking for posture settings...'
     }
   }
 
@@ -133,10 +133,12 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
   const handleSaveSettings = async (newSettings: PostureSettings): Promise<void> => {
     await window.api.updateSettings(newSettings)
     setSettings(newSettings)
-    setShowSettings(false)
   }
 
-
+  const handleDeleteSettings = async (): Promise<void> => {
+    await window.api.deleteSettings()
+    setSettings(null)
+  }
 
   useEffect(() => {
     if (!enabled) {
@@ -309,7 +311,7 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
           className="settings-btn" 
           onClick={() => setShowSettings(true)}
         >
-          Camera Settings
+          Posture Detection Settings
         </button>
         <video className="camera-video" ref={videoRef} autoPlay playsInline muted />
         <canvas className="camera-overlay" ref={canvasRef} />
@@ -328,6 +330,7 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
           initialSettings={settings}
           onClose={() => setShowSettings(false)}
           onSave={handleSaveSettings}
+          onDelete={handleDeleteSettings}
           stream={streamRef.current}
           latestLandmarksRef={lastLandmarksRef}
         />
