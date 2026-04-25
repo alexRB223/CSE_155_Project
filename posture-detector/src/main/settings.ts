@@ -1,11 +1,11 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import type { PostureSettings } from '../shared/backend'
 
 function getSettingsFilePath(): string {
   const userDataPath = app.getPath('userData')
-  console.log(userDataPath)
+  console.log("Settings save location: ", userDataPath)
   return join(userDataPath, 'posture_settings.json')
 }
 
@@ -38,6 +38,20 @@ export function updateSettings(settings: PostureSettings): boolean {
     return true
   } catch (err) {
     console.error('Failed to write settings', err)
+    return false
+  }
+}
+
+export function deleteSettings(): boolean {
+  const filePath = getSettingsFilePath()
+
+  try {
+    if (existsSync(filePath)) {
+      unlinkSync(filePath)
+    }
+    return true
+  } catch (err) {
+    console.error('Failed to delete settings', err)
     return false
   }
 }

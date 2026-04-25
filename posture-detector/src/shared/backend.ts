@@ -31,4 +31,5 @@ export interface BackendApi {
   createSession: (payload: CreateSessionInput) => Promise<SessionPreview>
   getSettings: () => Promise<PostureSettings | null>
   updateSettings: (settings: PostureSettings) => Promise<boolean>
+  deleteSettings: () => Promise<void>
 }

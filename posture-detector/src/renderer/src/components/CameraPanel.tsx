@@ -135,7 +135,11 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
     setShowSettings(false)
   }
 
-
+  const handleDeleteSettings = async (): Promise<void> => {
+    await window.api.deleteSettings()
+    setSettings(null)
+    setShowSettings(false)
+  }
 
   useEffect(() => {
     let stopped = false
@@ -311,6 +315,7 @@ function CameraPanel({ onPostureUpdate }: CameraPanelProps): React.JSX.Element {
           initialSettings={settings}
           onClose={() => setShowSettings(false)}
           onSave={handleSaveSettings}
+          onDelete={handleDeleteSettings}
           stream={streamRef.current}
           latestLandmarksRef={lastLandmarksRef}
         />

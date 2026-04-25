@@ -6,6 +6,7 @@ interface Props {
   initialSettings: PostureSettings | null
   onClose: () => void
   onSave: (settings: PostureSettings) => void
+  onDelete: () => Promise<void>
   stream: MediaStream | null
   latestLandmarksRef: React.MutableRefObject<NormalizedLandmark[] | null>
 }
@@ -58,6 +59,7 @@ export default function PostureSettingsModal({
   initialSettings,
   onClose,
   onSave,
+  onDelete,
   stream,
   latestLandmarksRef
 }: Props): React.JSX.Element {
@@ -267,10 +269,29 @@ export default function PostureSettingsModal({
     if (!next) return
 
     setSettings(next)
+
+    if (followLandmarksRef.current) {
+      setFollowLandmarks(false)
+    }
   }
 
   const handleSave = (): void => {
     onSave(settingsRef.current)
+  }
+
+  const handleDelete = (): void => {
+    const confirmed = window.confirm(
+      'Delete saved posture settings? This will remove your saved calibration and reopen with live tracking.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      onDelete()
+      handleToggleFollow()
+    } catch (err) {
+      console.error('Failed to delete saved posture settings', err)
+    }
   }
 
   return (
@@ -320,7 +341,7 @@ export default function PostureSettingsModal({
                   onClick={handleLocalQuickSet}
                   className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded transition shadow-lg hover:shadow-cyan-500/20"
                 >
-                  Set Current as Perfect
+                  Set Bounds To Current Position
                 </button>
               </div>
 
@@ -352,7 +373,7 @@ export default function PostureSettingsModal({
               </p>
             </div>
 
-            {(['shoulders', 'ears'] as const).map((point) => (
+            {(['ears', 'shoulders'] as const).map((point) => (
               settings[point] && (
                 <div key={point} className="bg-slate-700/80 p-3 rounded-md border border-slate-600">
                   <h4 className="capitalize font-medium mb-3 text-slate-200">
@@ -410,6 +431,12 @@ export default function PostureSettingsModal({
             className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-semibold text-sm transition shadow-lg"
           >
             Save Settings
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-semibold text-sm transition shadow-lg"
+          >
+            Clear Saved Settings
           </button>
         </div>
       </div>
