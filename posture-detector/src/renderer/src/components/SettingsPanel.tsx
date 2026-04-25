@@ -3,10 +3,12 @@ type SettingsPanelProps = {
   soundAlertsEnabled: boolean
   cameraEnabled: boolean
   goalSeconds: number
+  theme: 'dark' | 'light'
   onToggleNotifications: () => void
   onToggleSoundAlerts: () => void
   onToggleCamera: () => void
   onChangeGoal: (value: number) => void
+  onToggleTheme: () => void
 }
 
 function SettingsPanel({
@@ -14,10 +16,12 @@ function SettingsPanel({
   soundAlertsEnabled,
   cameraEnabled,
   goalSeconds,
+  theme,
   onToggleNotifications,
   onToggleSoundAlerts,
   onToggleCamera,
-  onChangeGoal
+  onChangeGoal,
+  onToggleTheme
 }: SettingsPanelProps): React.JSX.Element {
   return (
     <section className="card">
@@ -37,6 +41,17 @@ function SettingsPanel({
             min={10}
             max={600}
           />
+        </div>
+
+        <div className="setting-row">
+          <div>
+            <h3>Theme</h3>
+            <p>Switch between dark and light mode.</p>
+          </div>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={theme === 'light'} onChange={onToggleTheme} />
+            <span className="toggle-slider"></span>
+          </label>
         </div>
 
         <div className="setting-row">

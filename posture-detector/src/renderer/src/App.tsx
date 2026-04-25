@@ -12,6 +12,22 @@ const GOAL_MIN_SECONDS = 10
 const GOAL_MAX_SECONDS = 600
 const DEFAULT_REMINDER = 'Keep your shoulders relaxed and sit upright.'
 
+type Theme = 'dark' | 'light'
+
+function getInitialTheme(): Theme {
+  try {
+    const stored = window.localStorage.getItem('postureTheme')
+    if (stored === 'light' || stored === 'dark') {
+      return stored
+    }
+  } catch {
+    // Ignore storage errors (e.g., disabled storage in hardened environments).
+  }
+
+  const prefersLight = window.matchMedia?.('(prefers-color-scheme: light)')?.matches
+  return prefersLight ? 'light' : 'dark'
+}
+
 function getOrCreateAudioContext(ref: MutableRefObject<AudioContext | null>): AudioContext | null {
   if (ref.current) {
     return ref.current
@@ -19,9 +35,11 @@ function getOrCreateAudioContext(ref: MutableRefObject<AudioContext | null>): Au
 
   const AudioContextCtor =
     window.AudioContext ||
-    (window as typeof window & {
-      webkitAudioContext?: typeof AudioContext
-    }).webkitAudioContext
+    (
+      window as typeof window & {
+        webkitAudioContext?: typeof AudioContext
+      }
+    ).webkitAudioContext
 
   if (!AudioContextCtor) {
     return null
@@ -42,6 +60,7 @@ function App(): React.JSX.Element {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(true)
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [goalSeconds, setGoalSeconds] = useState(() => {
     try {
       const stored = window.localStorage.getItem('postureGoalSeconds')
@@ -56,6 +75,17 @@ function App(): React.JSX.Element {
   const [goodStreak, setGoodStreak] = useState(0)
   const [slouchStreak, setSlouchStreak] = useState(0)
   const audioContextRef = useRef<AudioContext | null>(null)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.documentElement.style.colorScheme = theme
+
+    try {
+      window.localStorage.setItem('postureTheme', theme)
+    } catch {
+      // Ignore storage errors (e.g., disabled storage in hardened environments).
+    }
+  }, [theme])
 
   useEffect(() => {
     try {
@@ -139,7 +169,6 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-
   const handleStart = (): void => {
     void primeAlertAudio()
     setIsRunning(true)
@@ -158,6 +187,10 @@ function App(): React.JSX.Element {
 
   const handleToggleSettings = (): void => {
     setShowSettings((prev) => !prev)
+  }
+
+  const handleToggleTheme = (): void => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
   const handleToggleNotifications = (): void => {
@@ -313,10 +346,12 @@ function App(): React.JSX.Element {
             soundAlertsEnabled={soundAlertsEnabled}
             cameraEnabled={cameraEnabled}
             goalSeconds={goalSeconds}
+            theme={theme}
             onToggleNotifications={handleToggleNotifications}
             onToggleSoundAlerts={handleToggleSoundAlerts}
             onToggleCamera={handleToggleCamera}
             onChangeGoal={handleChangeGoal}
+            onToggleTheme={handleToggleTheme}
           />
         )}
       </main>
