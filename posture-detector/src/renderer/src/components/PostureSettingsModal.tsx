@@ -160,7 +160,7 @@ export default function PostureSettingsModal({
 
   return (
     <div className="settings-modal-overlay">
-      <div className="settings-modal p-6 rounded-lg text-white">
+      <div className="settings-modal posture-settings-modal p-6 rounded-lg text-white">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Posture Settings</h2>
           <button type="button" className="settings-close-btn" onClick={onClose}>

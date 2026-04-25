@@ -8,8 +8,9 @@ import SettingsPanel from './components/SettingsPanel'
 import './assets/main.css'
 
 const DEFAULT_GOAL_SECONDS = 60
-const GOAL_MIN_SECONDS = 10
+const GOAL_MIN_SECONDS = 30
 const GOAL_MAX_SECONDS = 600
+const GOAL_STEP_SECONDS = 30
 const DEFAULT_REMINDER = 'Keep your shoulders relaxed and sit upright.'
 
 type Theme = 'dark' | 'light'
@@ -49,6 +50,11 @@ function getOrCreateAudioContext(ref: MutableRefObject<AudioContext | null>): Au
   return ref.current
 }
 
+function normalizeGoalSeconds(value: number): number {
+  const clamped = Math.min(GOAL_MAX_SECONDS, Math.max(GOAL_MIN_SECONDS, value))
+  return Math.round(clamped / GOAL_STEP_SECONDS) * GOAL_STEP_SECONDS
+}
+
 function App(): React.JSX.Element {
   const [seconds, setSeconds] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
@@ -67,7 +73,7 @@ function App(): React.JSX.Element {
       if (!stored) return DEFAULT_GOAL_SECONDS
       const parsed = Number(stored)
       if (!Number.isFinite(parsed)) return DEFAULT_GOAL_SECONDS
-      return Math.min(GOAL_MAX_SECONDS, Math.max(GOAL_MIN_SECONDS, Math.round(parsed)))
+      return normalizeGoalSeconds(parsed)
     } catch {
       return DEFAULT_GOAL_SECONDS
     }
@@ -213,8 +219,7 @@ function App(): React.JSX.Element {
       return
     }
 
-    const clamped = Math.min(GOAL_MAX_SECONDS, Math.max(GOAL_MIN_SECONDS, Math.round(value)))
-    setGoalSeconds(clamped)
+    setGoalSeconds(normalizeGoalSeconds(value))
   }
 
   async function primeAlertAudio(): Promise<void> {
