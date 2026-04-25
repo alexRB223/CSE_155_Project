@@ -16,6 +16,8 @@ const defaultSettings: PostureSettings = {
   ears: { idealY: 0.35, tolerance: 0.05 }
 }
 
+const defaultGlobalTolerance = 0.05
+
 const IDX = {
   leftShoulder: 11,
   rightShoulder: 12,
@@ -325,6 +327,14 @@ export default function PostureSettingsModal({
     }
   }
 
+  const handleResetToDefaults = (): void => {
+    setSettings({
+      shoulders: { ...defaultSettings.shoulders },
+      ears: { ...defaultSettings.ears }
+    })
+    setGlobalTolerance(defaultGlobalTolerance)
+  }
+
   return (
     <div className="settings-modal-overlay">
       <div className="settings-modal p-6 rounded-lg text-white">
@@ -463,7 +473,7 @@ export default function PostureSettingsModal({
         <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-700/50">
           <button
             onClick={handleSave}
-            className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-semibold text-sm transition shadow-lg"
+            className="settings-action-btn settings-action-btn-primary"
           >
             Save Settings
           </button>

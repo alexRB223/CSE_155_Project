@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import CameraPanel, { type PostureState } from './components/CameraPanel'
 import PostureStatusCard from './components/PostureStatusCard'
-import SessionTimer from './components/SessionTimer'
+import SessionSummaryPanel from './components/SessionSummaryPanel'
 import ReminderBanner from './components/ReminderBanner'
 import ControlBar from './components/ControlBar'
+import SettingsPanel from './components/SettingsPanel'
 import './assets/main.css'
 
 function App(): React.JSX.Element {
@@ -13,6 +14,11 @@ function App(): React.JSX.Element {
   const [postureState, setPostureState] = useState<PostureState>('loading')
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
+  const [showSettings, setShowSettings] = useState(false)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
+  const [cameraEnabled, setCameraEnabled] = useState(true)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   useEffect(() => {
     if (!isRunning) return
@@ -60,6 +66,7 @@ function App(): React.JSX.Element {
 
 
   const handleStart = (): void => {
+    void primeAlertAudio()
     setIsRunning(true)
   }
 
@@ -72,11 +79,117 @@ function App(): React.JSX.Element {
     setSeconds(0)
   }
 
-  const handlePostureUpdate = useCallback((state: PostureState, confidence: number, note: string): void => {
-    setPostureState(state)
-    setPostureConfidence(confidence)
-    setPostureNote(note)
+  const handleToggleSettings = (): void => {
+    setShowSettings((prev) => !prev)
+  }
+
+  const handleToggleNotifications = (): void => {
+    setNotificationsEnabled((prev) => !prev)
+  }
+
+  const handleToggleCamera = (): void => {
+    setCameraEnabled((prev) => !prev)
+  }
+
+  const getAudioContext = useCallback((): AudioContext | null => {
+    if (audioContextRef.current) {
+      return audioContextRef.current
+    }
+
+    const AudioContextCtor = window.AudioContext || (window as typeof window & {
+      webkitAudioContext?: typeof AudioContext
+    }).webkitAudioContext
+
+    if (!AudioContextCtor) {
+      return null
+    }
+
+    audioContextRef.current = new AudioContextCtor()
+    return audioContextRef.current
   }, [])
+
+  const primeAlertAudio = useCallback(async (): Promise<void> => {
+    const context = getAudioContext()
+    if (!context) {
+      return
+    }
+
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
+  }, [getAudioContext])
+
+  const handleToggleSoundAlerts = (): void => {
+    setSoundAlertsEnabled((prev) => {
+      const next = !prev
+      if (next) {
+        void primeAlertAudio()
+      }
+      return next
+    })
+  }
+
+  const playAlertTone = useCallback(async (): Promise<void> => {
+    const context = getAudioContext()
+    if (!context) {
+      return
+    }
+
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
+
+    const oscillator = context.createOscillator()
+    const gainNode = context.createGain()
+
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(1046, context.currentTime)
+    gainNode.gain.setValueAtTime(0.0001, context.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.03)
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35)
+
+    oscillator.connect(gainNode)
+    gainNode.connect(context.destination)
+
+    oscillator.start()
+    oscillator.stop(context.currentTime + 0.36)
+  }, [getAudioContext])
+
+  useEffect(() => {
+    if (!soundAlertsEnabled || !cameraEnabled || postureState !== 'slouching') {
+      return
+    }
+
+    // Beep immediately when entering/being in slouching state,
+    // then continue at a gentle interval until posture improves.
+    void playAlertTone()
+
+    const intervalId = window.setInterval(() => {
+      void playAlertTone()
+    }, 4000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [cameraEnabled, playAlertTone, postureState, soundAlertsEnabled])
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        void audioContextRef.current.close()
+        audioContextRef.current = null
+      }
+    }
+  }, [])
+
+  const handlePostureUpdate = useCallback(
+    (state: PostureState, confidence: number, note: string): void => {
+      setPostureState(state)
+      setPostureConfidence(confidence)
+      setPostureNote(note)
+    },
+    []
+  )
 
   return (
     <div className="app-shell">
@@ -88,25 +201,44 @@ function App(): React.JSX.Element {
 
       <main className="dashboard">
         <div className="top-grid">
-          <CameraPanel onPostureUpdate={handlePostureUpdate} />
+          <CameraPanel onPostureUpdate={handlePostureUpdate} enabled={cameraEnabled} />
           <div className="side-grid">
             <PostureStatusCard
               state={postureState}
               confidence={postureConfidence}
               note={postureNote}
+              visualAlertsEnabled={notificationsEnabled}
             />
-            <SessionTimer seconds={seconds} />
+            <SessionSummaryPanel
+              seconds={seconds}
+              isRunning={isRunning}
+              postureState={postureState}
+              postureConfidence={postureConfidence}
+              cameraEnabled={cameraEnabled}
+              notificationsEnabled={notificationsEnabled}
+            />
           </div>
         </div>
 
-        <ReminderBanner />
+        {notificationsEnabled && <ReminderBanner />}
 
         <ControlBar
           isRunning={isRunning}
           onStart={handleStart}
           onPause={handlePause}
           onReset={handleReset}
+          onToggleSettings={handleToggleSettings}
         />
+        {showSettings && (
+          <SettingsPanel
+            notificationsEnabled={notificationsEnabled}
+            soundAlertsEnabled={soundAlertsEnabled}
+            cameraEnabled={cameraEnabled}
+            onToggleNotifications={handleToggleNotifications}
+            onToggleSoundAlerts={handleToggleSoundAlerts}
+            onToggleCamera={handleToggleCamera}
+          />
+        )}
       </main>
     </div>
   )
