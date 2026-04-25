@@ -7,6 +7,8 @@ type SessionSummaryPanelProps = {
   postureConfidence: number
   cameraEnabled: boolean
   notificationsEnabled: boolean
+  goalSeconds: number
+  goodStreak: number
 }
 
 function formatTime(totalSeconds: number): string {
@@ -37,9 +39,12 @@ function SessionSummaryPanel({
   postureState,
   postureConfidence,
   cameraEnabled,
-  notificationsEnabled
+  notificationsEnabled,
+  goalSeconds,
+  goodStreak
 }: SessionSummaryPanelProps): React.JSX.Element {
   const tone = postureTone(postureState)
+  const goalProgress = Math.min(goodStreak, goalSeconds)
 
   return (
     <section className="card">
@@ -68,6 +73,12 @@ function SessionSummaryPanel({
         <div className="summary-item">
           <span className="summary-label">Alerts</span>
           <span className="summary-value">{notificationsEnabled ? 'On' : 'Off'}</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-label">Goal</span>
+          <span className="summary-value">
+            {goalProgress} / {goalSeconds} sec
+          </span>
         </div>
       </div>
     </section>

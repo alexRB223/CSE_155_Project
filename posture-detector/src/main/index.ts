@@ -9,7 +9,7 @@ import type { PostureSettings } from '../shared/backend'
 
 let pythonProcess: ChildProcess | null = null
 
-function startPython() {
+function startPython(): void {
   if (pythonProcess) return
 
   pythonProcess = spawn('python', ['-u', 'python/main.py'], {
@@ -30,7 +30,7 @@ function startPython() {
   })
 }
 
-function stopPython() {
+function stopPython(): void {
   if (!pythonProcess) return
 
   if (process.platform === 'win32' && pythonProcess.pid) {
@@ -67,7 +67,6 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -75,12 +74,10 @@ function createWindow(): void {
   }
 }
 
-
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
-  
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -89,7 +86,9 @@ app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
 
   ipcMain.handle('backend:settings:get', () => getSettings())
-  ipcMain.handle('backend:settings:update', (_event, settings: PostureSettings) => updateSettings(settings))
+  ipcMain.handle('backend:settings:update', (_event, settings: PostureSettings) =>
+    updateSettings(settings)
+  )
 
   registerBackendIpc()
   startPython()
@@ -100,10 +99,7 @@ app.whenReady().then(() => {
   })
 })
 
-
 app.on('window-all-closed', () => {
-    app.quit()
-    stopPython()
+  app.quit()
+  stopPython()
 })
-
-

@@ -22,7 +22,7 @@ function ControlBar({
         Pause
       </button>
       <button onClick={onReset} title="Reset the timer and session">
-         Reset
+        Reset
       </button>
       <button onClick={onToggleSettings} title="Open settings">
         Settings

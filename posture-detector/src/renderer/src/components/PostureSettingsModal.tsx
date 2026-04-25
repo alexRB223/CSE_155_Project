@@ -24,7 +24,13 @@ const IDX = {
   rightEar: 8
 } as const
 
-export default function PostureSettingsModal({ initialSettings, onClose, onSave, stream, latestLandmarksRef }: Props): React.JSX.Element {
+export default function PostureSettingsModal({
+  initialSettings,
+  onClose,
+  onSave,
+  stream,
+  latestLandmarksRef
+}: Props): React.JSX.Element {
   const [settings, setSettings] = useState<PostureSettings>(initialSettings || defaultSettings)
   const [globalTolerance, setGlobalTolerance] = useState(defaultGlobalTolerance)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -32,12 +38,6 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
   const rafRef = useRef<number | null>(null)
 
   const settingsRef = useRef<PostureSettings>(settings)
-
-  useEffect(() => {
-    if (initialSettings && initialSettings.shoulders && initialSettings.ears) {
-      setSettings(initialSettings)
-    }
-  }, [initialSettings])
 
   useEffect(() => {
     settingsRef.current = settings
@@ -89,7 +89,10 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
           const landmarks = latestLandmarksRef.current
           if (landmarks) {
             const drawingUtils = new DrawingUtils(ctx)
-            drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: '#67e8f9', lineWidth: 3 })
+            drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
+              color: '#67e8f9',
+              lineWidth: 3
+            })
             drawingUtils.drawLandmarks(landmarks, { color: '#f8fafc', radius: 2.5 })
           }
         }
@@ -174,16 +177,23 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
                 <canvas ref={canvasRef} className="mini-canvas" />
               </div>
               <div className="y-axis-scale">
-                <div className="y-tick" style={{ marginTop: '4px' }}>0.0</div>
-                <div className="y-tick" style={{ marginTop: 'auto', marginBottom: 'auto' }}>0.5</div>
-                <div className="y-tick" style={{ marginBottom: '4px' }}>1.0</div>
+                <div className="y-tick" style={{ marginTop: '4px' }}>
+                  0.0
+                </div>
+                <div className="y-tick" style={{ marginTop: 'auto', marginBottom: 'auto' }}>
+                  0.5
+                </div>
+                <div className="y-tick" style={{ marginBottom: '4px' }}>
+                  1.0
+                </div>
               </div>
             </div>
 
             <div className="p-4 bg-slate-700/50 rounded-md border border-slate-600/50">
               <h3 className="font-semibold mb-2 text-cyan-300">Quick Set</h3>
               <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                Sit in your ideal posture, then click the button below to map the bounds locally. Adjust sliders to refine, then save.
+                Sit in your ideal posture, then click the button below to map the bounds locally.
+                Adjust sliders to refine, then save.
               </p>
               <button
                 onClick={handleLocalQuickSet}
@@ -212,50 +222,60 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
                   {globalTolerance.toFixed(2)}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Adjusts the acceptable deviation range for all points.</p>
+              <p className="text-xs text-slate-400 mt-2">
+                Adjusts the acceptable deviation range for all points.
+              </p>
             </div>
 
-            {(['shoulders', 'ears'] as const).map((point) => (
-              settings[point] && (
-                <div key={point} className="bg-slate-700/80 p-3 rounded-md border border-slate-600">
-                  <h4 className="capitalize font-medium mb-3 text-slate-200">
-                    {point}
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <label className="text-xs text-slate-400 font-medium w-20">Ideal Y:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={settings[point].idealY}
-                        onChange={(e) => handlePointChange(point, 'idealY', parseFloat(e.target.value))}
-                        className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
-                      />
-                      <span className="text-xs font-mono w-10 text-right text-cyan-300">
-                        {settings[point].idealY.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <label className="text-xs text-slate-400 font-medium w-20">Tolerance:</label>
-                      <input
-                        type="range"
-                        min="0.01"
-                        max="0.2"
-                        step="0.01"
-                        value={settings[point].tolerance}
-                        onChange={(e) => handlePointChange(point, 'tolerance', parseFloat(e.target.value))}
-                        className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
-                      />
-                      <span className="text-xs font-mono w-10 text-right text-slate-300">
-                        {settings[point].tolerance.toFixed(2)}
-                      </span>
+            {(['shoulders', 'ears'] as const).map(
+              (point) =>
+                settings[point] && (
+                  <div
+                    key={point}
+                    className="bg-slate-700/80 p-3 rounded-md border border-slate-600"
+                  >
+                    <h4 className="capitalize font-medium mb-3 text-slate-200">{point}</h4>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-xs text-slate-400 font-medium w-20">Ideal Y:</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={settings[point].idealY}
+                          onChange={(e) =>
+                            handlePointChange(point, 'idealY', parseFloat(e.target.value))
+                          }
+                          className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <span className="text-xs font-mono w-10 text-right text-cyan-300">
+                          {settings[point].idealY.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <label className="text-xs text-slate-400 font-medium w-20">
+                          Tolerance:
+                        </label>
+                        <input
+                          type="range"
+                          min="0.01"
+                          max="0.2"
+                          step="0.01"
+                          value={settings[point].tolerance}
+                          onChange={(e) =>
+                            handlePointChange(point, 'tolerance', parseFloat(e.target.value))
+                          }
+                          className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <span className="text-xs font-mono w-10 text-right text-slate-300">
+                          {settings[point].tolerance.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            ))}
+                )
+            )}
           </div>
         </div>
 
@@ -266,10 +286,7 @@ export default function PostureSettingsModal({ initialSettings, onClose, onSave,
           >
             Reset to Defaults
           </button>
-          <button
-            onClick={handleSave}
-            className="settings-action-btn settings-action-btn-primary"
-          >
+          <button onClick={handleSave} className="settings-action-btn settings-action-btn-primary">
             Save Settings
           </button>
         </div>

@@ -80,7 +80,10 @@ function evaluatePosture(
     }
   }
 
-  const isOut = (pt: NormalizedLandmark, config: { idealY: number; tolerance: number }): boolean => {
+  const isOut = (
+    pt: NormalizedLandmark,
+    config: { idealY: number; tolerance: number }
+  ): boolean => {
     return Math.abs(pt.y - config.idealY) > config.tolerance
   }
 
@@ -125,9 +128,12 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
   }, [settings])
 
   useEffect(() => {
-    window.api.getSettings().then((s) => {
-      setSettings(s)
-    }).catch(console.error)
+    window.api
+      .getSettings()
+      .then((s) => {
+        setSettings(s)
+      })
+      .catch(console.error)
   }, [])
 
   const handleSaveSettings = async (newSettings: PostureSettings): Promise<void> => {
@@ -135,8 +141,6 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
     setSettings(newSettings)
     setShowSettings(false)
   }
-
-
 
   useEffect(() => {
     if (!enabled) {
@@ -305,10 +309,7 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
         <h2 className="m-0 absolute left-0 top-[4px]">Camera Preview</h2>
       </div>
       <div className="camera-live-frame mt-4 relative">
-        <button 
-          className="settings-btn" 
-          onClick={() => setShowSettings(true)}
-        >
+        <button className="settings-btn" onClick={() => setShowSettings(true)}>
           Camera Settings
         </button>
         <video className="camera-video" ref={videoRef} autoPlay playsInline muted />

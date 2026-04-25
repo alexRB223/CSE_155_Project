@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import CameraPanel, { type PostureState } from './components/CameraPanel'
 import PostureStatusCard from './components/PostureStatusCard'
 import SessionSummaryPanel from './components/SessionSummaryPanel'
@@ -6,6 +6,30 @@ import ReminderBanner from './components/ReminderBanner'
 import ControlBar from './components/ControlBar'
 import SettingsPanel from './components/SettingsPanel'
 import './assets/main.css'
+
+const DEFAULT_GOAL_SECONDS = 60
+const GOAL_MIN_SECONDS = 10
+const GOAL_MAX_SECONDS = 600
+const DEFAULT_REMINDER = 'Keep your shoulders relaxed and sit upright.'
+
+function getOrCreateAudioContext(ref: MutableRefObject<AudioContext | null>): AudioContext | null {
+  if (ref.current) {
+    return ref.current
+  }
+
+  const AudioContextCtor =
+    window.AudioContext ||
+    (window as typeof window & {
+      webkitAudioContext?: typeof AudioContext
+    }).webkitAudioContext
+
+  if (!AudioContextCtor) {
+    return null
+  }
+
+  ref.current = new AudioContextCtor()
+  return ref.current
+}
 
 function App(): React.JSX.Element {
   const [seconds, setSeconds] = useState(0)
@@ -18,7 +42,28 @@ function App(): React.JSX.Element {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(true)
+  const [goalSeconds, setGoalSeconds] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('postureGoalSeconds')
+      if (!stored) return DEFAULT_GOAL_SECONDS
+      const parsed = Number(stored)
+      if (!Number.isFinite(parsed)) return DEFAULT_GOAL_SECONDS
+      return Math.min(GOAL_MAX_SECONDS, Math.max(GOAL_MIN_SECONDS, Math.round(parsed)))
+    } catch {
+      return DEFAULT_GOAL_SECONDS
+    }
+  })
+  const [goodStreak, setGoodStreak] = useState(0)
+  const [slouchStreak, setSlouchStreak] = useState(0)
   const audioContextRef = useRef<AudioContext | null>(null)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('postureGoalSeconds', String(goalSeconds))
+    } catch {
+      // Ignore storage errors (e.g., disabled storage in hardened environments).
+    }
+  }, [goalSeconds])
 
   useEffect(() => {
     if (!isRunning) return
@@ -29,6 +74,36 @@ function App(): React.JSX.Element {
 
     return () => window.clearInterval(interval)
   }, [isRunning])
+
+  const reminderMessage =
+    goodStreak >= goalSeconds
+      ? 'Great job! You reached your posture goal.'
+      : slouchStreak >= 5
+        ? 'Fix your posture! Sit upright.'
+        : DEFAULT_REMINDER
+
+  useEffect(() => {
+    if (!isRunning || !cameraEnabled) return
+
+    const interval = window.setInterval(() => {
+      if (postureState === 'good') {
+        setGoodStreak((prev) => prev + 1)
+        setSlouchStreak(0)
+        return
+      }
+
+      if (postureState === 'slouching') {
+        setSlouchStreak((prev) => prev + 1)
+        setGoodStreak(0)
+        return
+      }
+
+      setGoodStreak(0)
+      setSlouchStreak(0)
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [cameraEnabled, isRunning, postureState])
 
   useEffect(() => {
     let active = true
@@ -77,6 +152,8 @@ function App(): React.JSX.Element {
   const handleReset = (): void => {
     setIsRunning(false)
     setSeconds(0)
+    setGoodStreak(0)
+    setSlouchStreak(0)
   }
 
   const handleToggleSettings = (): void => {
@@ -88,28 +165,27 @@ function App(): React.JSX.Element {
   }
 
   const handleToggleCamera = (): void => {
-    setCameraEnabled((prev) => !prev)
+    setCameraEnabled((prev) => {
+      const next = !prev
+      if (!next) {
+        setGoodStreak(0)
+        setSlouchStreak(0)
+      }
+      return next
+    })
   }
 
-  const getAudioContext = useCallback((): AudioContext | null => {
-    if (audioContextRef.current) {
-      return audioContextRef.current
+  const handleChangeGoal = (value: number): void => {
+    if (!Number.isFinite(value)) {
+      return
     }
 
-    const AudioContextCtor = window.AudioContext || (window as typeof window & {
-      webkitAudioContext?: typeof AudioContext
-    }).webkitAudioContext
+    const clamped = Math.min(GOAL_MAX_SECONDS, Math.max(GOAL_MIN_SECONDS, Math.round(value)))
+    setGoalSeconds(clamped)
+  }
 
-    if (!AudioContextCtor) {
-      return null
-    }
-
-    audioContextRef.current = new AudioContextCtor()
-    return audioContextRef.current
-  }, [])
-
-  const primeAlertAudio = useCallback(async (): Promise<void> => {
-    const context = getAudioContext()
+  async function primeAlertAudio(): Promise<void> {
+    const context = getOrCreateAudioContext(audioContextRef)
     if (!context) {
       return
     }
@@ -117,7 +193,7 @@ function App(): React.JSX.Element {
     if (context.state === 'suspended') {
       await context.resume()
     }
-  }, [getAudioContext])
+  }
 
   const handleToggleSoundAlerts = (): void => {
     setSoundAlertsEnabled((prev) => {
@@ -129,35 +205,35 @@ function App(): React.JSX.Element {
     })
   }
 
-  const playAlertTone = useCallback(async (): Promise<void> => {
-    const context = getAudioContext()
-    if (!context) {
-      return
-    }
-
-    if (context.state === 'suspended') {
-      await context.resume()
-    }
-
-    const oscillator = context.createOscillator()
-    const gainNode = context.createGain()
-
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(1046, context.currentTime)
-    gainNode.gain.setValueAtTime(0.0001, context.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.03)
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35)
-
-    oscillator.connect(gainNode)
-    gainNode.connect(context.destination)
-
-    oscillator.start()
-    oscillator.stop(context.currentTime + 0.36)
-  }, [getAudioContext])
-
   useEffect(() => {
     if (!soundAlertsEnabled || !cameraEnabled || postureState !== 'slouching') {
       return
+    }
+
+    const playAlertTone = async (): Promise<void> => {
+      const context = getOrCreateAudioContext(audioContextRef)
+      if (!context) {
+        return
+      }
+
+      if (context.state === 'suspended') {
+        await context.resume()
+      }
+
+      const oscillator = context.createOscillator()
+      const gainNode = context.createGain()
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(1046, context.currentTime)
+      gainNode.gain.setValueAtTime(0.0001, context.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.03)
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35)
+
+      oscillator.connect(gainNode)
+      gainNode.connect(context.destination)
+
+      oscillator.start()
+      oscillator.stop(context.currentTime + 0.36)
     }
 
     // Beep immediately when entering/being in slouching state,
@@ -171,7 +247,7 @@ function App(): React.JSX.Element {
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [cameraEnabled, playAlertTone, postureState, soundAlertsEnabled])
+  }, [cameraEnabled, postureState, soundAlertsEnabled])
 
   useEffect(() => {
     return () => {
@@ -216,11 +292,13 @@ function App(): React.JSX.Element {
               postureConfidence={postureConfidence}
               cameraEnabled={cameraEnabled}
               notificationsEnabled={notificationsEnabled}
+              goalSeconds={goalSeconds}
+              goodStreak={goodStreak}
             />
           </div>
         </div>
 
-        {notificationsEnabled && <ReminderBanner />}
+        {notificationsEnabled && <ReminderBanner message={reminderMessage} />}
 
         <ControlBar
           isRunning={isRunning}
@@ -234,9 +312,11 @@ function App(): React.JSX.Element {
             notificationsEnabled={notificationsEnabled}
             soundAlertsEnabled={soundAlertsEnabled}
             cameraEnabled={cameraEnabled}
+            goalSeconds={goalSeconds}
             onToggleNotifications={handleToggleNotifications}
             onToggleSoundAlerts={handleToggleSoundAlerts}
             onToggleCamera={handleToggleCamera}
+            onChangeGoal={handleChangeGoal}
           />
         )}
       </main>

@@ -360,6 +360,33 @@ input:checked + .toggle-slider:before {
   color: #94a3b8;
 }
 
+.setting-number {
+  width: 92px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: rgba(11, 18, 32, 0.8);
+  color: #e2e8f0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.setting-number:focus {
+  outline: none;
+  border-color: #67e8f9;
+  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.18);
+}
+
+.setting-number::-webkit-outer-spin-button,
+.setting-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.setting-number[type='number'] {
+  -moz-appearance: textfield;
+}
+
 @media (max-width: 900px) {
   .top-grid {
     grid-template-columns: 1fr;

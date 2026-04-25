@@ -8,6 +8,31 @@ const defaultSettings: PostureSettings = {
   ears: { idealY: 0.35, tolerance: 0.05 }
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isPostureSettings(value: unknown): value is PostureSettings {
+  if (!value || typeof value !== 'object') return false
+
+  const record = value as Record<string, unknown>
+  const shoulders = record.shoulders
+  const ears = record.ears
+
+  if (!shoulders || typeof shoulders !== 'object') return false
+  if (!ears || typeof ears !== 'object') return false
+
+  const shouldersRecord = shoulders as Record<string, unknown>
+  const earsRecord = ears as Record<string, unknown>
+
+  return (
+    isFiniteNumber(shouldersRecord.idealY) &&
+    isFiniteNumber(shouldersRecord.tolerance) &&
+    isFiniteNumber(earsRecord.idealY) &&
+    isFiniteNumber(earsRecord.tolerance)
+  )
+}
+
 function getSettingsFilePath(): string {
   // Use user data directory to persist across updates
   const userDataPath = app.getPath('userData')
@@ -16,7 +41,7 @@ function getSettingsFilePath(): string {
 
 export function getSettings(): PostureSettings {
   const filePath = getSettingsFilePath()
-  
+
   if (!existsSync(filePath)) {
     // Write defaults if it doesn't exist
     updateSettings(defaultSettings)
@@ -25,13 +50,12 @@ export function getSettings(): PostureSettings {
 
   try {
     const data = readFileSync(filePath, 'utf-8')
-    const parsed = JSON.parse(data) as any
-    // Migration check: if old structure, wipe to new default
-    if (!parsed.shoulders || !parsed.ears) {
+    const parsed = JSON.parse(data) as unknown
+    if (!isPostureSettings(parsed)) {
       updateSettings(defaultSettings)
       return defaultSettings
     }
-    return parsed as PostureSettings
+    return parsed
   } catch (err) {
     console.error('Failed to read settings, returning default', err)
     return defaultSettings

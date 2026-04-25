@@ -2,18 +2,22 @@ type SettingsPanelProps = {
   notificationsEnabled: boolean
   soundAlertsEnabled: boolean
   cameraEnabled: boolean
+  goalSeconds: number
   onToggleNotifications: () => void
   onToggleSoundAlerts: () => void
   onToggleCamera: () => void
+  onChangeGoal: (value: number) => void
 }
 
 function SettingsPanel({
   notificationsEnabled,
   soundAlertsEnabled,
   cameraEnabled,
+  goalSeconds,
   onToggleNotifications,
   onToggleSoundAlerts,
-  onToggleCamera
+  onToggleCamera,
+  onChangeGoal
 }: SettingsPanelProps): React.JSX.Element {
   return (
     <section className="card">
@@ -22,11 +26,30 @@ function SettingsPanel({
       <div className="settings-grid">
         <div className="setting-row">
           <div>
+            <h3>Posture Goal</h3>
+            <p>Set how long to maintain good posture (seconds).</p>
+          </div>
+          <input
+            className="setting-number"
+            type="number"
+            value={goalSeconds}
+            onChange={(e) => onChangeGoal(Number(e.target.value))}
+            min={10}
+            max={600}
+          />
+        </div>
+
+        <div className="setting-row">
+          <div>
             <h3>Visual Alerts</h3>
             <p>Toggle for Visual reminder notifications.</p>
           </div>
           <label className="toggle-switch">
-            <input type="checkbox" checked={notificationsEnabled} onChange={onToggleNotifications} />
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={onToggleNotifications}
+            />
             <span className="toggle-slider"></span>
           </label>
         </div>
@@ -52,7 +75,6 @@ function SettingsPanel({
             <span className="toggle-slider"></span>
           </label>
         </div>
-
       </div>
     </section>
   )
