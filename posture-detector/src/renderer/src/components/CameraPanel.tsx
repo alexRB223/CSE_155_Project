@@ -76,7 +76,7 @@ function evaluatePosture(
     return {
       state: 'loading',
       confidence,
-      note: 'Loading posture settings...'
+      note: 'Checking for posture settings...'
     }
   }
 
@@ -139,7 +139,6 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
   const handleSaveSettings = async (newSettings: PostureSettings): Promise<void> => {
     await window.api.updateSettings(newSettings)
     setSettings(newSettings)
-    setShowSettings(false)
   }
 
   useEffect(() => {
@@ -329,6 +328,7 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
           initialSettings={settings}
           onClose={() => setShowSettings(false)}
           onSave={handleSaveSettings}
+          onDelete={handleDeleteSettings}
           stream={streamRef.current}
           latestLandmarksRef={lastLandmarksRef}
         />

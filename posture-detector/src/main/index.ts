@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerBackendIpc } from './backend'
 import { spawn, ChildProcess } from 'child_process'
-import { getSettings, updateSettings } from './settings'
+import { getSettings, updateSettings, deleteSettings } from './settings'
 import type { PostureSettings } from '../shared/backend'
 
 let pythonProcess: ChildProcess | null = null
@@ -47,8 +47,8 @@ function stopPython(): void {
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
