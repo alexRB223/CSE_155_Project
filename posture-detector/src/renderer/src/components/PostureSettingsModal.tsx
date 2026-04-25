@@ -77,9 +77,20 @@ export default function PostureSettingsModal({
   const settingsRef = useRef<PostureSettings>(settings)
   const followLandmarksRef = useRef<boolean>(followLandmarks)
 
-  useEffect(() => {
-    console.log('initialSettings received:', initialSettings)
+  const [statusMessage, setStatusMessage] = useState(
+    initialSettings ? 'Locked for manual adjustment' : 'Following detected landmarks'
+  )
+  const [statusTone, setStatusTone] = useState<'neutral' | 'success' | 'warning' | 'error'>('neutral')
 
+  const setFeedback = (
+    message: string,
+    tone: 'neutral' | 'success' | 'warning' | 'error' = 'neutral'
+  ): void => {
+    setStatusMessage(message)
+    setStatusTone(tone)
+  }
+
+  useEffect(() => {
     if (initialSettings?.shoulders && initialSettings?.ears) {
       setSettings(initialSettings)
       setGlobalTolerance(initialSettings.shoulders.tolerance)
@@ -247,6 +258,7 @@ export default function PostureSettingsModal({
   const handleToggleFollow = (): void => {
     if (followLandmarksRef.current) {
       setFollowLandmarks(false)
+      setFeedback('Bounds locked for manual adjustment', 'neutral')
       return
     }
 
@@ -259,6 +271,7 @@ export default function PostureSettingsModal({
     }
 
     setFollowLandmarks(true)
+    setFeedback('Following detected landmarks, lock or set before exiting', 'warning')
   }
 
   const handleLocalQuickSet = (): void => {
@@ -273,24 +286,42 @@ export default function PostureSettingsModal({
     if (followLandmarksRef.current) {
       setFollowLandmarks(false)
     }
+    setFeedback('Bounds set to current position', 'success')
   }
 
-  const handleSave = (): void => {
-    onSave(settingsRef.current)
+  const handleSave = async (): Promise<void> => {
+    try {
+      await onSave(settingsRef.current)
+      setFeedback('Settings saved', 'success')
+    } catch (err) {
+      console.error(err)
+      setFeedback('Failed to save settings', 'error')
+    }
   }
 
-  const handleDelete = (): void => {
+  const handleDelete = async (): Promise<void> => {
     const confirmed = window.confirm(
-      'Delete saved posture settings? This will remove your saved calibration and reopen with live tracking.'
+      'Delete saved posture settings? This will remove your saved calibration.'
     )
 
     if (!confirmed) return
 
     try {
-      onDelete()
-      handleToggleFollow()
+      await onDelete()
+      setFollowLandmarks(true)
+      setFeedback('Saved settings cleared', 'success')
     } catch (err) {
       console.error('Failed to delete saved posture settings', err)
+      setFeedback('Failed to clear saved settings', 'warning')
+    }
+  }
+
+  const handleClose = (): void => {
+    if (followLandmarks){
+      setFeedback('Failed to close, lock bounds before closing', 'error')
+      return
+    } else {
+      onClose()
     }
   }
 
@@ -298,8 +329,8 @@ export default function PostureSettingsModal({
     <div className="settings-modal-overlay">
       <div className="settings-modal p-6 rounded-lg text-white">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Posture Settings</h2>
-          <button className="text-slate-400 hover:text-white transition" onClick={onClose}>
+          <h2 className="text-xl font-bold">Posture Detection Settings</h2>
+          <button className="text-slate-400 hover:text-white transition" onClick={handleClose}>
             ✕
           </button>
         </div>
@@ -319,19 +350,25 @@ export default function PostureSettingsModal({
             </div>
 
             <div className="p-4 bg-slate-700/50 rounded-md border border-slate-600/50">
-              <h3 className="font-semibold mb-2 text-cyan-300">Tracking</h3>
+              <h3 className="font-semibold mb-2 text-cyan-300">Intructions</h3>
               <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                By default, the bounds follow your detected shoulders and ears live. Lock the bounds
-                when you want them to stop following, then use the sliders to fine tune.
+                Keep your shoulders and head in frame.<br/>
+                Lock the bounds or set the bounds' position when in desired location.
+                Adjust manually for fine tune control.
+                <br/>Remember to save your settings.
               </p>
+            </div>
+          </div>
 
-              <div className="flex flex-col gap-3">
+          <div className="settings-right-col space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="border border-slate-600 bg-slate-800/50 p-4 rounded-md mb-2">
+              <div className="flex flex-col gap-3 items-center justify-center">
                 <button
                   onClick={handleToggleFollow}
-                  className={`w-full text-white font-semibold py-2 px-4 rounded transition shadow-lg ${
+                  className={`w-[90%] text-white font-semibold py-1.5 px-4 rounded transition shadow-lg ${
                     followLandmarks
                       ? 'bg-amber-600 hover:bg-amber-500'
-                      : 'bg-emerald-600 hover:bg-emerald-500'
+                      : 'bg-cyan-600 hover:bg-cyan-500'
                   }`}
                 >
                   {followLandmarks ? 'Lock Bounds' : 'Unlock Bounds'}
@@ -339,20 +376,24 @@ export default function PostureSettingsModal({
 
                 <button
                   onClick={handleLocalQuickSet}
-                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded transition shadow-lg hover:shadow-cyan-500/20"
+                  className="w-[90%] bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-1.5
+                             px-4 rounded transition shadow-lg hover:shadow-cyan-500/20"
                 >
                   Set Bounds To Current Position
                 </button>
               </div>
 
-              <p className="text-xs text-slate-400 mt-3">
-                Mode: {followLandmarks ? 'Following detected landmarks' : 'Locked for manual adjustment'}
+              <p
+                className={`text-s mt-3
+                  ${statusTone === 'success' ? 'text-emerald-300'
+                  : statusTone === 'warning' ? 'text-amber-300'
+                  : statusTone === 'error' ? 'text-red-300'
+                  : 'text-slate-400'}`}
+              >
+                {statusMessage}
               </p>
             </div>
-          </div>
-
-          <div className="settings-right-col space-y-4 max-h-[65vh] overflow-y-auto pr-3 custom-scrollbar">
-            <div className="border border-slate-600 bg-slate-800/50 p-4 rounded-md mb-2">
+            <div className="bg-slate-700/80 p-3 rounded-md border border-slate-600">
               <h3 className="font-semibold mb-2 text-slate-100">Global Tolerance Offset</h3>
               <div className="flex items-center gap-4">
                 <input
@@ -362,14 +403,14 @@ export default function PostureSettingsModal({
                   step="0.01"
                   value={globalTolerance}
                   onChange={handleGlobalToleranceChange}
-                  className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                  className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
                 />
-                <span className="text-sm font-mono w-12 text-right bg-slate-900 px-2 rounded border border-slate-600">
+                <span className="text-xs font-mono w-10 text-right text-slate-300">
                   {globalTolerance.toFixed(2)}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2">
-                Adjusts the acceptable deviation range for all points.
+                Adjusts the acceptable deviation range for all bounds.
               </p>
             </div>
 
@@ -392,7 +433,7 @@ export default function PostureSettingsModal({
                         onChange={(e) => handlePointChange(point, 'idealY', parseFloat(e.target.value))}
                         className="flex-1 h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer"
                       />
-                      <span className="text-xs font-mono w-10 text-right text-cyan-300">
+                      <span className="text-xs font-mono w-10 text-right text-slate-300">
                         {settings[point].idealY.toFixed(2)}
                       </span>
                     </div>
@@ -421,12 +462,6 @@ export default function PostureSettingsModal({
 
         <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-700/50">
           <button
-            onClick={onClose}
-            className="px-5 py-2 border border-slate-500 rounded text-sm hover:bg-slate-700 transition"
-          >
-            Cancel
-          </button>
-          <button
             onClick={handleSave}
             className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-semibold text-sm transition shadow-lg"
           >
@@ -434,9 +469,15 @@ export default function PostureSettingsModal({
           </button>
           <button
             onClick={handleDelete}
-            className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-semibold text-sm transition shadow-lg"
+            className="px-5 py-2 border border-slate-500 rounded text-sm hover:bg-slate-700 transition"
           >
             Clear Saved Settings
+          </button>
+          <button
+            onClick={handleClose}
+            className="px-5 py-2 border border-slate-500 rounded text-sm hover:bg-slate-700 transition"
+          >
+            Close
           </button>
         </div>
       </div>
