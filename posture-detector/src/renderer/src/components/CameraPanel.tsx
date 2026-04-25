@@ -75,7 +75,7 @@ function evaluatePosture(
     return {
       state: 'loading',
       confidence,
-      note: 'Loading posture settings...'
+      note: 'Checking for posture settings...'
     }
   }
 

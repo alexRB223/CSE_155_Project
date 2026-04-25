@@ -3,38 +3,31 @@ import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import type { PostureSettings } from '../shared/backend'
 
-const defaultSettings: PostureSettings = {
-  shoulders: { idealY: 0.5, tolerance: 0.05 },
-  ears: { idealY: 0.35, tolerance: 0.05 }
-}
-
 function getSettingsFilePath(): string {
-  // Use user data directory to persist across updates
   const userDataPath = app.getPath('userData')
+  console.log(userDataPath)
   return join(userDataPath, 'posture_settings.json')
 }
 
-export function getSettings(): PostureSettings {
+export function getSettings(): PostureSettings | null {
   const filePath = getSettingsFilePath()
-  
+
   if (!existsSync(filePath)) {
-    // Write defaults if it doesn't exist
-    updateSettings(defaultSettings)
-    return defaultSettings
+    return null
   }
 
   try {
     const data = readFileSync(filePath, 'utf-8')
-    const parsed = JSON.parse(data) as any
-    // Migration check: if old structure, wipe to new default
-    if (!parsed.shoulders || !parsed.ears) {
-      updateSettings(defaultSettings)
-      return defaultSettings
+    const parsed = JSON.parse(data) as unknown as PostureSettings
+
+    if (!parsed?.shoulders || !parsed?.ears) {
+      return null
     }
-    return parsed as PostureSettings
+
+    return parsed
   } catch (err) {
-    console.error('Failed to read settings, returning default', err)
-    return defaultSettings
+    console.error('Failed to read settings, returning null', err)
+    return null
   }
 }
 

@@ -29,6 +29,6 @@ export interface BackendApi {
   health: () => Promise<BackendHealth>
   listSessions: () => Promise<SessionPreview[]>
   createSession: (payload: CreateSessionInput) => Promise<SessionPreview>
-  getSettings: () => Promise<PostureSettings>
+  getSettings: () => Promise<PostureSettings | null>
   updateSettings: (settings: PostureSettings) => Promise<boolean>
 }
