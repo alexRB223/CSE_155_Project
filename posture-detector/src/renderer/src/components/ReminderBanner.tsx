@@ -1,8 +1,12 @@
-function ReminderBanner(): React.JSX.Element {
+type ReminderBannerProps = {
+  message: string
+}
+
+function ReminderBanner({ message }: ReminderBannerProps): React.JSX.Element {
   return (
     <section className="card reminder">
       <h2>Reminder</h2>
-      <p>Keep your shoulders relaxed and sit upright.</p>
+      <p aria-live="polite">{message}</p>
     </section>
   )
 }

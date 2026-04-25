@@ -15,10 +15,9 @@ function PostureStatusCard({
 }: PostureStatusCardProps): React.JSX.Element {
   const alertsDisabled = !visualAlertsEnabled
 
-  const label =
-    alertsDisabled
-      ? 'Visual alerts are off'
-      : state === 'good'
+  const label = alertsDisabled
+    ? 'Visual alerts are off'
+    : state === 'good'
       ? 'Good posture'
       : state === 'slouching'
         ? 'Slouching detected'
@@ -28,10 +27,9 @@ function PostureStatusCard({
             ? 'Camera/model error'
             : 'Analyzing posture...'
 
-  const statusClass =
-    alertsDisabled
-      ? 'pending'
-      : state === 'good'
+  const statusClass = alertsDisabled
+    ? 'pending'
+    : state === 'good'
       ? 'good'
       : state === 'slouching'
         ? 'bad'
@@ -39,7 +37,9 @@ function PostureStatusCard({
           ? 'error'
           : 'pending'
 
-  const detailText = alertsDisabled ? 'Turn on Visual Alerts in Settings to show live warning text.' : note
+  const detailText = alertsDisabled
+    ? 'Turn on Visual Alerts in Settings to show live warning text.'
+    : note
 
   return (
     <section className="card">

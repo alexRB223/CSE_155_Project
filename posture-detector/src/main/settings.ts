@@ -1,33 +1,64 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 import type { PostureSettings } from '../shared/backend'
 
+const defaultSettings: PostureSettings = {
+  shoulders: { idealY: 0.5, tolerance: 0.05 },
+  ears: { idealY: 0.35, tolerance: 0.05 }
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isPostureSettings(value: unknown): value is PostureSettings {
+  if (!value || typeof value !== 'object') return false
+
+  const record = value as Record<string, unknown>
+  const shoulders = record.shoulders
+  const ears = record.ears
+
+  if (!shoulders || typeof shoulders !== 'object') return false
+  if (!ears || typeof ears !== 'object') return false
+
+  const shouldersRecord = shoulders as Record<string, unknown>
+  const earsRecord = ears as Record<string, unknown>
+
+  return (
+    isFiniteNumber(shouldersRecord.idealY) &&
+    isFiniteNumber(shouldersRecord.tolerance) &&
+    isFiniteNumber(earsRecord.idealY) &&
+    isFiniteNumber(earsRecord.tolerance)
+  )
+}
+
 function getSettingsFilePath(): string {
+  // Use user data directory to persist across updates
   const userDataPath = app.getPath('userData')
-  console.log("Settings save location: ", userDataPath)
   return join(userDataPath, 'posture_settings.json')
 }
 
-export function getSettings(): PostureSettings | null {
+export function getSettings(): PostureSettings {
   const filePath = getSettingsFilePath()
 
   if (!existsSync(filePath)) {
-    return null
+    // Write defaults if it doesn't exist
+    updateSettings(defaultSettings)
+    return defaultSettings
   }
 
   try {
     const data = readFileSync(filePath, 'utf-8')
-    const parsed = JSON.parse(data) as unknown as PostureSettings
-
-    if (!parsed?.shoulders || !parsed?.ears) {
-      return null
+    const parsed = JSON.parse(data) as unknown
+    if (!isPostureSettings(parsed)) {
+      updateSettings(defaultSettings)
+      return defaultSettings
     }
-
     return parsed
   } catch (err) {
-    console.error('Failed to read settings, returning null', err)
-    return null
+    console.error('Failed to read settings, returning default', err)
+    return defaultSettings
   }
 }
 
@@ -38,20 +69,6 @@ export function updateSettings(settings: PostureSettings): boolean {
     return true
   } catch (err) {
     console.error('Failed to write settings', err)
-    return false
-  }
-}
-
-export function deleteSettings(): boolean {
-  const filePath = getSettingsFilePath()
-
-  try {
-    if (existsSync(filePath)) {
-      unlinkSync(filePath)
-    }
-    return true
-  } catch (err) {
-    console.error('Failed to delete settings', err)
     return false
   }
 }
