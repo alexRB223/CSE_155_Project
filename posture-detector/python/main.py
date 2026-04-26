@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import secrets
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -34,6 +36,19 @@ class CreateSessionInput(BaseModel):
     endedAtIso: str
 
 
+class CreateUserInput(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    username: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserAccount(BaseModel):
+    id: str
+    email: str
+    username: str
+    createdAt: str
+
+
 def _get_db_connection() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
@@ -55,6 +70,53 @@ def _init_db() -> None:
             """
         )
         connection.commit()
+
+
+def _hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    password_hash = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100_000
+    ).hex()
+    return f"{salt}:{password_hash}"
+
+
+def _create_user(payload: CreateUserInput) -> UserAccount:
+    created_at = datetime.now(timezone.utc).isoformat()
+    user = UserAccount(
+        id=str(uuid.uuid4()),
+        email=payload.email.strip().lower(),
+        username=payload.username.strip(),
+        createdAt=created_at
+    )
+
+    try:
+        with _get_db_connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO users (id, email, username, password_hash, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    user.id,
+                    user.email,
+                    user.username,
+                    _hash_password(payload.password),
+                    user.createdAt
+                )
+            )
+            connection.commit()
+    except sqlite3.IntegrityError as error:
+        message = str(error).lower()
+        if "email" in message:
+            raise HTTPException(status_code=409, detail="Email is already in use") from error
+        if "username" in message:
+            raise HTTPException(status_code=409, detail="Username is already in use") from error
+        raise HTTPException(status_code=400, detail="Unable to create user") from error
+
+    return user
 
 
 def _read_sessions() -> list[dict[str, Any]]:
@@ -119,6 +181,11 @@ def create_session(payload: CreateSessionInput) -> SessionPreview:
     _write_sessions(sessions[:500])
 
     return session
+
+
+@app.post("/users/signup", response_model=UserAccount, status_code=201)
+def signup(payload: CreateUserInput) -> UserAccount:
+    return _create_user(payload)
 
 
 if __name__ == "__main__":
