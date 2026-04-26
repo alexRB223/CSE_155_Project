@@ -49,6 +49,11 @@ class UserAccount(BaseModel):
     createdAt: str
 
 
+class LoginUserInput(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=8, max_length=128)
+
+
 def _get_db_connection() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
@@ -81,6 +86,30 @@ def _hash_password(password: str) -> str:
         100_000
     ).hex()
     return f"{salt}:{password_hash}"
+
+
+def _verify_password(password: str, stored_password_hash: str) -> bool:
+    try:
+        salt, expected_hash = stored_password_hash.split(":", maxsplit=1)
+    except ValueError:
+        return False
+
+    password_hash = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100_000
+    ).hex()
+    return secrets.compare_digest(password_hash, expected_hash)
+
+
+def _map_user_row(row: sqlite3.Row) -> UserAccount:
+    return UserAccount(
+        id=row["id"],
+        email=row["email"],
+        username=row["username"],
+        createdAt=row["created_at"]
+    )
 
 
 def _create_user(payload: CreateUserInput) -> UserAccount:
@@ -117,6 +146,23 @@ def _create_user(payload: CreateUserInput) -> UserAccount:
         raise HTTPException(status_code=400, detail="Unable to create user") from error
 
     return user
+
+
+def _login_user(payload: LoginUserInput) -> UserAccount:
+    with _get_db_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, email, username, password_hash, created_at
+            FROM users
+            WHERE email = ?
+            """,
+            (payload.email.strip().lower(),)
+        ).fetchone()
+
+    if row is None or not _verify_password(payload.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return _map_user_row(row)
 
 
 def _read_sessions() -> list[dict[str, Any]]:
@@ -186,6 +232,11 @@ def create_session(payload: CreateSessionInput) -> SessionPreview:
 @app.post("/users/signup", response_model=UserAccount, status_code=201)
 def signup(payload: CreateUserInput) -> UserAccount:
     return _create_user(payload)
+
+
+@app.post("/users/login", response_model=UserAccount)
+def login(payload: LoginUserInput) -> UserAccount:
+    return _login_user(payload)
 
 
 if __name__ == "__main__":
