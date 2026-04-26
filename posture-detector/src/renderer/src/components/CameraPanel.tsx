@@ -148,8 +148,7 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
 
   const handleDeleteSettings = async (): Promise<void> => {
     await window.api.deleteSettings()
-    const resetSettings = await window.api.getSettings()
-    setSettings(resetSettings)
+    setSettings(null)
   }
 
   const handleQuickSetCurrentPosture = async (): Promise<void> => {
@@ -352,7 +351,7 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
       </div>
       <div className="camera-live-frame mt-4 relative">
         <button className="settings-btn" onClick={() => setShowSettings(true)}>
-          Camera Settings
+          Posture Detection Settings
         </button>
         <video className="camera-video" ref={videoRef} autoPlay playsInline muted />
         <canvas className="camera-overlay" ref={canvasRef} />
