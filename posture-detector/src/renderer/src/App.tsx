@@ -72,7 +72,6 @@ function App(): React.JSX.Element {
   })
   const [seconds, setSeconds] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
-  const [backendStatus, setBackendStatus] = useState('Checking backend...')
   const [postureState, setPostureState] = useState<PostureState>('loading')
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
@@ -154,40 +153,6 @@ function App(): React.JSX.Element {
 
     return () => window.clearInterval(interval)
   }, [cameraEnabled, isRunning, postureState])
-
-  useEffect(() => {
-    let active = true
-
-    const checkBackend = async (): Promise<void> => {
-      try {
-        const health = await window.api.health()
-
-        if (!active) return
-
-        if (health.ok) {
-          setBackendStatus('Backend connected')
-          window.clearInterval(interval)
-        } else {
-          setBackendStatus('Backend unavailable')
-        }
-      } catch {
-        if (active) {
-          setBackendStatus('Backend unavailable')
-        }
-      }
-    }
-
-    const interval = window.setInterval(() => {
-      void checkBackend()
-    }, 2000)
-
-    void checkBackend()
-
-    return () => {
-      active = false
-      window.clearInterval(interval)
-    }
-  }, [])
 
   const handleStart = (): void => {
     void primeAlertAudio()
@@ -357,7 +322,6 @@ function App(): React.JSX.Element {
                 ? 'Log in to keep your posture sessions and account data tied together.'
                 : 'Start with a simple account so we can connect future posture history and settings to you.'}
             </p>
-            <p className="backend-status">{backendStatus}</p>
           </div>
 
           <form className="auth-form" onSubmit={handleAuthSubmit}>
@@ -437,7 +401,6 @@ function App(): React.JSX.Element {
         <h1>Posture Study Companion</h1>
         <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
         <p>Signed in as {currentUser.username}</p>
-        <p className="backend-status">{backendStatus}</p>
       </header>
 
       <main className="dashboard">

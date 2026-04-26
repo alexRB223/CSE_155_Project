@@ -10,6 +10,31 @@ import type {
 
 const PY_BACKEND_URL = process.env.PY_BACKEND_URL ?? 'http://127.0.0.1:8000'
 
+function getFriendlyBackendErrorMessage(status: number, errorText: string): string {
+  try {
+    const parsed = JSON.parse(errorText) as { detail?: unknown }
+    if (typeof parsed.detail === 'string' && parsed.detail.trim()) {
+      return parsed.detail
+    }
+  } catch {
+    // Fall back to generic messages when the backend response is not JSON.
+  }
+
+  if (status === 401) {
+    return 'Invalid username or password'
+  }
+
+  if (status === 409) {
+    return 'Username is already in use'
+  }
+
+  if (status >= 500) {
+    return 'Backend error. Please try again.'
+  }
+
+  return 'Request failed. Please check your input and try again.'
+}
+
 async function callPythonApi<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
 
@@ -28,7 +53,7 @@ async function callPythonApi<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`Python backend error (${response.status}): ${errorText}`)
+    throw new Error(getFriendlyBackendErrorMessage(response.status, errorText))
   }
 
   return (await response.json()) as T
