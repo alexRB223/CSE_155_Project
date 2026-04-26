@@ -296,12 +296,23 @@ function App(): React.JSX.Element {
   }, [cameraEnabled, postureState, soundAlertsEnabled])
 
   useEffect(() => {
-    const shouldShowOverlay =
+    const shouldTrackSlouch =
       overlayAlertsEnabled &&
       cameraEnabled &&
       postureState === 'slouching'
 
-    void window.electron.ipcRenderer.invoke('overlay:set-visible', shouldShowOverlay)
+    if (!shouldTrackSlouch) {
+      void window.electron.ipcRenderer.invoke('overlay:set-visible', false)
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void window.electron.ipcRenderer.invoke('overlay:set-visible', true)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
   }, [cameraEnabled, overlayAlertsEnabled, postureState])
 
   useEffect(() => {

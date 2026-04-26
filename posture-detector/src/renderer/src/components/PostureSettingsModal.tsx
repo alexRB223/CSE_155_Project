@@ -16,8 +16,6 @@ const defaultSettings: PostureSettings = {
   ears: { idealY: 0.35, tolerance: 0.05 }
 }
 
-const defaultGlobalTolerance = 0.05
-
 const IDX = {
   leftShoulder: 11,
   rightShoulder: 12,
@@ -331,14 +329,6 @@ const handleToggleFollow = (): void => {
     } else {
       onClose()
     }
-  }
-
-  const handleResetToDefaults = (): void => {
-    setSettings({
-      shoulders: { ...defaultSettings.shoulders },
-      ears: { ...defaultSettings.ears }
-    })
-    setGlobalTolerance(defaultGlobalTolerance)
   }
 
   return (

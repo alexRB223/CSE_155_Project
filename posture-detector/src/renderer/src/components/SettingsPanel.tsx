@@ -130,8 +130,8 @@ function SettingsPanel({
 
         <div className="setting-row">
           <div>
-            <h3>Theme</h3>
-            <p>Switch between dark and light mode.</p>
+            <h3>Light Mode</h3>
+            <p>Toggle Light Mode on/off.</p>
           </div>
           <label className="toggle-switch">
             <input type="checkbox" checked={theme === 'light'} onChange={onToggleTheme} />

@@ -81,7 +81,7 @@ function evaluatePosture(
     return {
       state: 'loading',
       confidence,
-      note: 'Checking for posture settings...'
+      note: 'Posture settings not found, click \n"Posture\u00A0Detection\u00A0Settings" \nto start posture detection.'
     }
   }
 

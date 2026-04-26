@@ -74,6 +74,7 @@ export function deleteSettings(): boolean {
 
   try {
     if (existsSync(filePath)) {
+      console.log("Deleted saved settings")
       rmSync(filePath)
     }
     return true
