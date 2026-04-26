@@ -1,9 +1,9 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, rmSync } from 'fs'
 import type { PostureSettings } from '../shared/backend'
 
-const defaultSettings: PostureSettings = {
+export const defaultSettings: PostureSettings = {
   shoulders: { idealY: 0.5, tolerance: 0.05 },
   ears: { idealY: 0.35, tolerance: 0.05 }
 }
@@ -69,6 +69,20 @@ export function updateSettings(settings: PostureSettings): boolean {
     return true
   } catch (err) {
     console.error('Failed to write settings', err)
+    return false
+  }
+}
+
+export function deleteSettings(): boolean {
+  const filePath = getSettingsFilePath()
+
+  try {
+    if (existsSync(filePath)) {
+      rmSync(filePath)
+    }
+    return true
+  } catch (err) {
+    console.error('Failed to delete settings', err)
     return false
   }
 }

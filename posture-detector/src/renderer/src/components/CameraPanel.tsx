@@ -141,6 +141,12 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
     setSettings(newSettings)
   }
 
+  const handleDeleteSettings = async (): Promise<void> => {
+    await window.api.deleteSettings()
+    const resetSettings = await window.api.getSettings()
+    setSettings(resetSettings)
+  }
+
   useEffect(() => {
     if (!enabled) {
       onPostureUpdate('loading', 0, 'Camera is turned off')

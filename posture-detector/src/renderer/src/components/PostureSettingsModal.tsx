@@ -6,6 +6,7 @@ interface Props {
   initialSettings: PostureSettings | null
   onClose: () => void
   onSave: (settings: PostureSettings) => void
+  onDelete: () => void | Promise<void>
   stream: MediaStream | null
   latestLandmarksRef: React.MutableRefObject<NormalizedLandmark[] | null>
 }
@@ -28,11 +29,14 @@ export default function PostureSettingsModal({
   initialSettings,
   onClose,
   onSave,
+  onDelete,
   stream,
   latestLandmarksRef
 }: Props): React.JSX.Element {
   const [settings, setSettings] = useState<PostureSettings>(initialSettings || defaultSettings)
-  const [globalTolerance, setGlobalTolerance] = useState(defaultGlobalTolerance)
+  const [globalTolerance, setGlobalTolerance] = useState(
+    initialSettings?.shoulders.tolerance ?? defaultGlobalTolerance
+  )
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -42,6 +46,12 @@ export default function PostureSettingsModal({
   useEffect(() => {
     settingsRef.current = settings
   }, [settings])
+
+  useEffect(() => {
+    const nextSettings = initialSettings || defaultSettings
+    setSettings(nextSettings)
+    setGlobalTolerance(nextSettings.shoulders.tolerance)
+  }, [initialSettings])
 
   useEffect(() => {
     if (stream && videoRef.current) {
@@ -150,12 +160,13 @@ export default function PostureSettingsModal({
     }))
   }
 
-  const handleResetToDefaults = (): void => {
+  const handleResetToDefaults = async (): Promise<void> => {
     setSettings({
       shoulders: { ...defaultSettings.shoulders },
       ears: { ...defaultSettings.ears }
     })
     setGlobalTolerance(defaultGlobalTolerance)
+    await onDelete()
   }
 
   return (

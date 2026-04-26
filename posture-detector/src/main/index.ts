@@ -89,6 +89,7 @@ app.whenReady().then(() => {
   ipcMain.handle('backend:settings:update', (_event, settings: PostureSettings) =>
     updateSettings(settings)
   )
+  ipcMain.handle('backend:settings:delete', () => deleteSettings())
 
   registerBackendIpc()
   startPython()
