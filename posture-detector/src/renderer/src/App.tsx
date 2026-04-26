@@ -57,6 +57,25 @@ function normalizeGoalSeconds(value: number): number {
   return Math.round(clamped / GOAL_STEP_SECONDS) * GOAL_STEP_SECONDS
 }
 
+function getReadableAuthErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (!(error instanceof Error) || !error.message) {
+    return fallbackMessage
+  }
+
+  const message = error.message
+  const wrappedPrefixMatch = message.match(/Error invoking remote method '[^']+':\s*Error:\s*(.+)$/s)
+  if (wrappedPrefixMatch?.[1]) {
+    return wrappedPrefixMatch[1].trim()
+  }
+
+  const directPrefixMatch = message.match(/^Error:\s*(.+)$/s)
+  if (directPrefixMatch?.[1]) {
+    return directPrefixMatch[1].trim()
+  }
+
+  return message.trim()
+}
+
 function App(): React.JSX.Element {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
@@ -307,12 +326,7 @@ function App(): React.JSX.Element {
     } catch (error) {
       const fallbackMessage =
         authMode === 'login' ? 'Unable to log in right now.' : 'Unable to create account right now.'
-
-      if (error instanceof Error && error.message) {
-        setAuthError(error.message)
-      } else {
-        setAuthError(fallbackMessage)
-      }
+      setAuthError(getReadableAuthErrorMessage(error, fallbackMessage))
     } finally {
       setAuthPending(false)
     }
