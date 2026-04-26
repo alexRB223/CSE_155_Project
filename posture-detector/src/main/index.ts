@@ -10,7 +10,7 @@ import type { PostureSettings } from '../shared/backend'
 let pythonProcess: ChildProcess | null = null
 let overlayWindow: BrowserWindow | null = null
 
-function startPython(): void {
+function startPython() {
   if (pythonProcess) return
 
   pythonProcess = spawn('python', ['-u', 'python/main.py'], {
@@ -31,7 +31,7 @@ function startPython(): void {
   })
 }
 
-function stopPython(): void {
+function stopPython() {
   if (!pythonProcess) return
 
   if (process.platform === 'win32' && pythonProcess.pid) {
@@ -61,6 +61,13 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  mainWindow.on('closed', () => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.close()
+      overlayWindow = null
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -221,7 +228,14 @@ app.whenReady().then(() => {
   })
 })
 
+app.on('before-quit', () => {
+  stopPython()
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.destroy()
+    overlayWindow = null
+  }
+})
+
 app.on('window-all-closed', () => {
   app.quit()
-  stopPython()
 })
