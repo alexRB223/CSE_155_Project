@@ -5,3 +5,4 @@ out
 .eslintcache
 *.log*
 __pycache__/
+python/data/*.db

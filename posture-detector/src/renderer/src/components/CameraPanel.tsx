@@ -16,6 +16,11 @@ interface CameraPanelProps {
   enabled: boolean
 }
 
+const DEFAULT_POSTURE_SETTINGS: PostureSettings = {
+  shoulders: { idealY: 0.5, tolerance: 0.05 },
+  ears: { idealY: 0.35, tolerance: 0.05 }
+}
+
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm'
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'
@@ -80,7 +85,10 @@ function evaluatePosture(
     }
   }
 
-  const isOut = (pt: NormalizedLandmark, config: { idealY: number; tolerance: number }): boolean => {
+  const isOut = (
+    pt: NormalizedLandmark,
+    config: { idealY: number; tolerance: number }
+  ): boolean => {
     return Math.abs(pt.y - config.idealY) > config.tolerance
   }
 
@@ -125,9 +133,12 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
   }, [settings])
 
   useEffect(() => {
-    window.api.getSettings().then((s) => {
-      setSettings(s)
-    }).catch(console.error)
+    window.api
+      .getSettings()
+      .then((s) => {
+        setSettings(s)
+      })
+      .catch(console.error)
   }, [])
 
   const handleSaveSettings = async (newSettings: PostureSettings): Promise<void> => {
@@ -138,6 +149,27 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
   const handleDeleteSettings = async (): Promise<void> => {
     await window.api.deleteSettings()
     setSettings(null)
+  }
+
+  const handleQuickSetCurrentPosture = async (): Promise<void> => {
+    const landmarks = lastLandmarksRef.current
+    if (!landmarks) {
+      return
+    }
+
+    const baseSettings = settings ?? DEFAULT_POSTURE_SETTINGS
+    const nextSettings: PostureSettings = {
+      shoulders: {
+        ...baseSettings.shoulders,
+        idealY: (landmarks[IDX.leftShoulder].y + landmarks[IDX.rightShoulder].y) / 2
+      },
+      ears: {
+        ...baseSettings.ears,
+        idealY: (landmarks[IDX.leftEar].y + landmarks[IDX.rightEar].y) / 2
+      }
+    }
+
+    await handleSaveSettings(nextSettings)
   }
 
   useEffect(() => {
@@ -303,14 +335,22 @@ function CameraPanel({ onPostureUpdate, enabled }: CameraPanelProps): React.JSX.
 
   return (
     <section className="card relative">
-      <div className="flex justify-between items-center mb-4 relative z-10 w-full h-[32px]">
-        <h2 className="m-0 absolute left-0 top-[4px]">Camera Preview</h2>
+      <div className="camera-card-header">
+        <h2>Camera Preview</h2>
+        <div className="camera-card-actions">
+          <button
+            type="button"
+            className="camera-quickset-btn"
+            onClick={() => void handleQuickSetCurrentPosture()}
+            disabled={!cameraReady || !lastLandmarksRef.current}
+            title="Save the current posture as your target alignment"
+          >
+            Set Current as Perfect
+          </button>
+        </div>
       </div>
       <div className="camera-live-frame mt-4 relative">
-        <button 
-          className="settings-btn" 
-          onClick={() => setShowSettings(true)}
-        >
+        <button className="settings-btn" onClick={() => setShowSettings(true)}>
           Posture Detection Settings
         </button>
         <video className="camera-video" ref={videoRef} autoPlay playsInline muted />

@@ -6,7 +6,7 @@ interface Props {
   initialSettings: PostureSettings | null
   onClose: () => void
   onSave: (settings: PostureSettings) => void
-  onDelete: () => Promise<void>
+  onDelete: () => void | Promise<void>
   stream: MediaStream | null
   latestLandmarksRef: React.MutableRefObject<NormalizedLandmark[] | null>
 }
@@ -113,11 +113,17 @@ export default function PostureSettingsModal({
   }, [followLandmarks])
 
   useEffect(() => {
+    const nextSettings = initialSettings || defaultSettings
+    setSettings(nextSettings)
+    setGlobalTolerance(nextSettings.shoulders.tolerance)
+  }, [initialSettings])
+
+  useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream
     }
   }, [stream])
-
+  
   useEffect(() => {
     const syncTrackedBounds = (): void => {
       const landmarks = latestLandmarksRef.current
@@ -164,7 +170,7 @@ export default function PostureSettingsModal({
     }
   }, [latestLandmarksRef])
 
-  useEffect(() => {
+    useEffect(() => {
     const drawLoop = (): void => {
       const video = videoRef.current
       const canvas = canvasRef.current
@@ -257,7 +263,7 @@ export default function PostureSettingsModal({
     }))
   }
 
-  const handleToggleFollow = (): void => {
+const handleToggleFollow = (): void => {
     if (followLandmarksRef.current) {
       setFollowLandmarks(false)
       setFeedback('Bounds locked for manual adjustment', 'neutral')
