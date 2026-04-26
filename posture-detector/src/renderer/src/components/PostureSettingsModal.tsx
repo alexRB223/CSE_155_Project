@@ -18,13 +18,6 @@ const defaultSettings: PostureSettings = {
 
 const defaultGlobalTolerance = 0.05
 
-const IDX = {
-  leftShoulder: 11,
-  rightShoulder: 12,
-  leftEar: 7,
-  rightEar: 8
-} as const
-
 export default function PostureSettingsModal({
   initialSettings,
   onClose,
@@ -146,20 +139,6 @@ export default function PostureSettingsModal({
     onSave(settings)
   }
 
-  const handleLocalQuickSet = (): void => {
-    const lm = latestLandmarksRef.current
-    if (!lm) return
-
-    const avgShoulderY = (lm[IDX.leftShoulder].y + lm[IDX.rightShoulder].y) / 2
-    const avgEarY = (lm[IDX.leftEar].y + lm[IDX.rightEar].y) / 2
-
-    setSettings((prev) => ({
-      ...prev,
-      shoulders: { ...prev.shoulders, idealY: avgShoulderY },
-      ears: { ...prev.ears, idealY: avgEarY }
-    }))
-  }
-
   const handleResetToDefaults = async (): Promise<void> => {
     setSettings({
       shoulders: { ...defaultSettings.shoulders },
@@ -180,7 +159,7 @@ export default function PostureSettingsModal({
         </div>
 
         <div className="settings-split-layout">
-          {/* LEFT COL: Camera & Quick Set */}
+          {/* LEFT COL: Camera Preview */}
           <div className="settings-left-col">
             <div className="mini-camera-container mb-4 shadow-inner rounded-md">
               <div className="mini-camera-wrapper">
@@ -198,20 +177,6 @@ export default function PostureSettingsModal({
                   1.0
                 </div>
               </div>
-            </div>
-
-            <div className="p-4 bg-slate-700/50 rounded-md border border-slate-600/50">
-              <h3 className="font-semibold mb-2 text-cyan-300">Quick Set</h3>
-              <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                Sit in your ideal posture, then click the button below to map the bounds locally.
-                Adjust sliders to refine, then save.
-              </p>
-              <button
-                onClick={handleLocalQuickSet}
-                className="settings-action-btn settings-action-btn-primary w-full"
-              >
-                Set Current as Perfect
-              </button>
             </div>
           </div>
 

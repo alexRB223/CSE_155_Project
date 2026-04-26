@@ -62,7 +62,7 @@ function App(): React.JSX.Element {
   const [postureState, setPostureState] = useState<PostureState>('loading')
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
-  const [showSettings, setShowSettings] = useState(false)
+  const [overlayAlertsEnabled, setOverlayAlertsEnabled] = useState(true)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(true)
@@ -100,6 +100,40 @@ function App(): React.JSX.Element {
       // Ignore storage errors (e.g., disabled storage in hardened environments).
     }
   }, [goalSeconds])
+
+  useEffect(() => {
+    let active = true
+
+    const checkBackend = async (): Promise<void> => {
+      try {
+        const health = await window.api.health()
+
+        if (!active) return
+
+        if (health.ok) {
+          setBackendStatus('Backend connected')
+          window.clearInterval(interval)
+        } else {
+          setBackendStatus('Backend unavailable')
+        }
+      } catch {
+        if (active) {
+          setBackendStatus('Backend unavailable')
+        }
+      }
+    }
+
+    const interval = window.setInterval(() => {
+      void checkBackend()
+    }, 2000)
+
+    void checkBackend()
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isRunning) return
@@ -141,40 +175,6 @@ function App(): React.JSX.Element {
     return () => window.clearInterval(interval)
   }, [cameraEnabled, isRunning, postureState])
 
-  useEffect(() => {
-    let active = true
-
-    const checkBackend = async (): Promise<void> => {
-      try {
-        const health = await window.api.health()
-
-        if (!active) return
-
-        if (health.ok) {
-          setBackendStatus('Backend connected')
-          window.clearInterval(interval)
-        } else {
-          setBackendStatus('Backend unavailable')
-        }
-      } catch {
-        if (active) {
-          setBackendStatus('Backend unavailable')
-        }
-      }
-    }
-
-    const interval = window.setInterval(() => {
-      void checkBackend()
-    }, 2000)
-
-    void checkBackend()
-
-    return () => {
-      active = false
-      window.clearInterval(interval)
-    }
-  }, [])
-
   const handleStart = (): void => {
     void primeAlertAudio()
     setIsRunning(true)
@@ -191,8 +191,16 @@ function App(): React.JSX.Element {
     setSlouchStreak(0)
   }
 
-  const handleToggleSettings = (): void => {
-    setShowSettings((prev) => !prev)
+  const handleToggleOverlay = async (): Promise<void> => {
+    try {
+      const nextEnabled = !overlayAlertsEnabled
+      setOverlayAlertsEnabled(nextEnabled)
+      if (!nextEnabled) {
+        await window.electron.ipcRenderer.invoke('overlay:set-visible', false)
+      }
+    } catch {
+      setOverlayAlertsEnabled(false)
+    }
   }
 
   const handleToggleTheme = (): void => {
@@ -288,6 +296,15 @@ function App(): React.JSX.Element {
   }, [cameraEnabled, postureState, soundAlertsEnabled])
 
   useEffect(() => {
+    const shouldShowOverlay =
+      overlayAlertsEnabled &&
+      cameraEnabled &&
+      postureState === 'slouching'
+
+    void window.electron.ipcRenderer.invoke('overlay:set-visible', shouldShowOverlay)
+  }, [cameraEnabled, overlayAlertsEnabled, postureState])
+
+  useEffect(() => {
     return () => {
       if (audioContextRef.current) {
         void audioContextRef.current.close()
@@ -308,9 +325,13 @@ function App(): React.JSX.Element {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>Posture Study Companion</h1>
-        <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
-        <p className="backend-status">{backendStatus}</p>
+        <div className="app-header-row">
+          <div>
+            <h1>Posture Study Companion</h1>
+            <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
+            <p className="backend-status">{backendStatus}</p>
+          </div>
+        </div>
       </header>
 
       <main className="dashboard">
@@ -343,22 +364,21 @@ function App(): React.JSX.Element {
           onStart={handleStart}
           onPause={handlePause}
           onReset={handleReset}
-          onToggleSettings={handleToggleSettings}
         />
-        {showSettings && (
-          <SettingsPanel
-            notificationsEnabled={notificationsEnabled}
-            soundAlertsEnabled={soundAlertsEnabled}
-            cameraEnabled={cameraEnabled}
-            goalSeconds={goalSeconds}
-            theme={theme}
-            onToggleNotifications={handleToggleNotifications}
-            onToggleSoundAlerts={handleToggleSoundAlerts}
-            onToggleCamera={handleToggleCamera}
-            onChangeGoal={handleChangeGoal}
-            onToggleTheme={handleToggleTheme}
-          />
-        )}
+        <SettingsPanel
+          overlayAlertsEnabled={overlayAlertsEnabled}
+          notificationsEnabled={notificationsEnabled}
+          soundAlertsEnabled={soundAlertsEnabled}
+          cameraEnabled={cameraEnabled}
+          goalSeconds={goalSeconds}
+          theme={theme}
+          onToggleOverlay={handleToggleOverlay}
+          onToggleNotifications={handleToggleNotifications}
+          onToggleSoundAlerts={handleToggleSoundAlerts}
+          onToggleCamera={handleToggleCamera}
+          onChangeGoal={handleChangeGoal}
+          onToggleTheme={handleToggleTheme}
+        />
       </main>
     </div>
   )
