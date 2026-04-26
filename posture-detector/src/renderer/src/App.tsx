@@ -194,6 +194,14 @@ function App(): React.JSX.Element {
     setShowSettings(false)
     setAuthError('')
     setAuthMode('login')
+    setLoginForm({
+      username: '',
+      password: ''
+    })
+    setSignupForm({
+      username: '',
+      password: ''
+    })
     setCurrentUser(null)
   }
 
