@@ -5,7 +5,6 @@ import SessionSummaryPanel from './components/SessionSummaryPanel'
 import ReminderBanner from './components/ReminderBanner'
 import ControlBar from './components/ControlBar'
 import SettingsPanel from './components/SettingsPanel'
-import type { CreateUserInput, LoginUserInput, UserAccount } from '../../shared/backend'
 import './assets/main.css'
 
 const DEFAULT_GOAL_SECONDS = 60
@@ -15,7 +14,6 @@ const GOAL_STEP_SECONDS = 30
 const DEFAULT_REMINDER = 'Keep your shoulders relaxed and sit upright.'
 
 type Theme = 'dark' | 'light'
-type AuthMode = 'login' | 'signup'
 
 function getInitialTheme(): Theme {
   try {
@@ -57,40 +55,10 @@ function normalizeGoalSeconds(value: number): number {
   return Math.round(clamped / GOAL_STEP_SECONDS) * GOAL_STEP_SECONDS
 }
 
-function getReadableAuthErrorMessage(error: unknown, fallbackMessage: string): string {
-  if (!(error instanceof Error) || !error.message) {
-    return fallbackMessage
-  }
-
-  const message = error.message
-  const wrappedPrefixMatch = message.match(/Error invoking remote method '[^']+':\s*Error:\s*(.+)$/s)
-  if (wrappedPrefixMatch?.[1]) {
-    return wrappedPrefixMatch[1].trim()
-  }
-
-  const directPrefixMatch = message.match(/^Error:\s*(.+)$/s)
-  if (directPrefixMatch?.[1]) {
-    return directPrefixMatch[1].trim()
-  }
-
-  return message.trim()
-}
-
 function App(): React.JSX.Element {
-  const [authMode, setAuthMode] = useState<AuthMode>('login')
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
-  const [authError, setAuthError] = useState('')
-  const [authPending, setAuthPending] = useState(false)
-  const [loginForm, setLoginForm] = useState<LoginUserInput>({
-    username: '',
-    password: ''
-  })
-  const [signupForm, setSignupForm] = useState<CreateUserInput>({
-    username: '',
-    password: ''
-  })
   const [seconds, setSeconds] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
+  const [backendStatus, setBackendStatus] = useState('Checking backend...')
   const [postureState, setPostureState] = useState<PostureState>('loading')
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
@@ -158,6 +126,40 @@ function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    let active = true
+
+    const checkBackend = async (): Promise<void> => {
+      try {
+        const health = await window.api.health()
+
+        if (!active) return
+
+        if (health.ok) {
+          setBackendStatus('Backend connected')
+          window.clearInterval(interval)
+        } else {
+          setBackendStatus('Backend unavailable')
+        }
+      } catch {
+        if (active) {
+          setBackendStatus('Backend unavailable')
+        }
+      }
+    }
+
+    const interval = window.setInterval(() => {
+      void checkBackend()
+    }, 2000)
+
+    void checkBackend()
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!isRunning) return
 
     const interval = window.setInterval(() => {
@@ -211,24 +213,6 @@ function App(): React.JSX.Element {
     setSeconds(0)
     setGoodStreak(0)
     setSlouchStreak(0)
-  }
-
-  const handleLogout = (): void => {
-    handleReset()
-    setShowSettings(false)
-    setAuthError('')
-    setAuthMode('login')
-    setOverlayAlertsEnabled(false)
-    setLoginForm({
-      username: '',
-      password: ''
-    })
-    setSignupForm({
-      username: '',
-      password: ''
-    })
-    setCurrentUser(null)
-    void window.electron.ipcRenderer.invoke('overlay:set-visible', false)
   }
 
   const handleToggleOverlay = async (): Promise<void> => {
@@ -342,12 +326,11 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const shouldShowOverlay =
       overlayAlertsEnabled &&
-      currentUser !== null &&
       cameraEnabled &&
       postureState === 'slouching'
 
     void window.electron.ipcRenderer.invoke('overlay:set-visible', shouldShowOverlay)
-  }, [cameraEnabled, currentUser, overlayAlertsEnabled, postureState])
+  }, [cameraEnabled, overlayAlertsEnabled, postureState])
 
   useEffect(() => {
     return () => {
@@ -367,141 +350,6 @@ function App(): React.JSX.Element {
     []
   )
 
-  const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault()
-    setAuthError('')
-    setAuthPending(true)
-
-    try {
-      const user =
-        authMode === 'login'
-          ? await window.api.login(loginForm)
-          : await window.api.signup(signupForm)
-
-      setCurrentUser(user)
-    } catch (error) {
-      const fallbackMessage =
-        authMode === 'login' ? 'Unable to log in right now.' : 'Unable to create account right now.'
-      setAuthError(getReadableAuthErrorMessage(error, fallbackMessage))
-    } finally {
-      setAuthPending(false)
-    }
-  }
-
-  if (!currentUser) {
-    return (
-      <div className="app-shell auth-shell">
-        <section className="auth-card">
-          <div className="auth-copy">
-            <p className="auth-eyebrow">Posture Study Companion</p>
-            <h1>{authMode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
-            <p>
-              {authMode === 'login'
-                ? 'Log in to keep your posture sessions and account data tied together.'
-                : 'Start with a simple account so we can connect future posture history and settings to you.'}
-            </p>
-          </div>
-
-          <form className="auth-form" onSubmit={handleAuthSubmit}>
-            <div className="auth-mode-toggle" aria-label="Authentication mode">
-              <button
-                className={`auth-mode-btn ${authMode === 'login' ? 'active' : ''}`}
-                type="button"
-                onClick={() => {
-                  setAuthError('')
-                  setAuthMode('login')
-                }}
-              >
-                Log In
-              </button>
-              <button
-                className={`auth-mode-btn ${authMode === 'signup' ? 'active' : ''}`}
-                type="button"
-                onClick={() => {
-                  setAuthError('')
-                  setAuthMode('signup')
-                }}
-              >
-                Create Account
-              </button>
-            </div>
-
-            <p className="auth-mode-note">
-              {authMode === 'login'
-                ? 'Use an existing username and password.'
-                : 'This creates a brand new account.'}
-            </p>
-
-            <label className="auth-field">
-              <span>Username</span>
-              <input
-                type="text"
-                value={authMode === 'login' ? loginForm.username : signupForm.username}
-                onChange={(event) => {
-                  const { value } = event.target
-                  if (authMode === 'login') {
-                    setLoginForm((prev) => ({ ...prev, username: value }))
-                    return
-                  }
-                  setSignupForm((prev) => ({ ...prev, username: value }))
-                }}
-                placeholder="studybuddy"
-                minLength={3}
-                maxLength={50}
-                required
-              />
-            </label>
-
-            <label className="auth-field">
-              <span>Password</span>
-              <input
-                type="password"
-                value={authMode === 'login' ? loginForm.password : signupForm.password}
-                onChange={(event) => {
-                  const { value } = event.target
-                  if (authMode === 'login') {
-                    setLoginForm((prev) => ({ ...prev, password: value }))
-                    return
-                  }
-                  setSignupForm((prev) => ({ ...prev, password: value }))
-                }}
-                placeholder="At least 8 characters"
-                minLength={8}
-                maxLength={128}
-                required
-              />
-            </label>
-
-            {authError && <p className="auth-error">{authError}</p>}
-
-            <button className="auth-submit" type="submit" disabled={authPending}>
-              {authPending
-                ? authMode === 'login'
-                  ? 'Logging in...'
-                  : 'Creating account...'
-                : authMode === 'login'
-                  ? 'Log In to Existing Account'
-                  : 'Create New Account'}
-            </button>
-
-            <button
-              className="auth-switch"
-              type="button"
-              onClick={() => {
-                setAuthError('')
-                setAuthMode((prev) => (prev === 'login' ? 'signup' : 'login'))
-              }}
-            >
-              {authMode === 'login'
-                ? 'Need a new account? Switch to sign up'
-                : 'Already have an account? Switch to log in'}
-            </button>
-          </form>
-        </section>
-      </div>
-    )
-  }
-
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -509,14 +357,11 @@ function App(): React.JSX.Element {
           <div>
             <h1>Posture Study Companion</h1>
             <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
-            <p>Signed in as {currentUser.username}</p>
+            <p className="backend-status">{backendStatus}</p>
           </div>
           <div className="header-actions">
             <button className="header-action-btn" type="button" onClick={() => void handleToggleOverlay()}>
               {overlayAlertsEnabled ? 'Overlay Alerts On' : 'Overlay Alerts Off'}
-            </button>
-            <button className="header-action-btn" type="button" onClick={handleLogout}>
-              Log Out
             </button>
           </div>
         </div>

@@ -106,7 +106,6 @@ function createOverlayWindow(): void {
 
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true })
 
   const overlayHtml = `
     <!doctype html>
@@ -131,31 +130,28 @@ function createOverlayWindow(): void {
             width: 100%;
             height: 100%;
             box-sizing: border-box;
-            padding: 18px 20px;
-            border-radius: 20px;
+            padding: 16px 18px;
+            border-radius: 18px;
             border: 1px solid rgba(251, 113, 133, 0.4);
-            background:
-              linear-gradient(135deg, rgba(127, 29, 29, 0.94), rgba(76, 5, 25, 0.92)),
-              rgba(69, 10, 10, 0.92);
+            background: rgba(69, 10, 10, 0.92);
             color: #ffe4e6;
-            box-shadow: 0 18px 36px rgba(2, 6, 23, 0.35);
           }
           .overlay-title {
             margin: 0 0 10px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.16em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
             color: #fecdd3;
           }
           .overlay-message {
-            margin: 0;
+            margin: 0 0 8px;
             font-size: 24px;
             font-weight: 700;
-            line-height: 1.05;
+            line-height: 1.1;
           }
           .overlay-note {
-            margin: 12px 0 0;
+            margin: 0;
             font-size: 13px;
             color: #fecdd3;
           }
@@ -164,8 +160,8 @@ function createOverlayWindow(): void {
       <body>
         <div class="overlay-card">
           <p class="overlay-title">Posture Alert</p>
-          <p class="overlay-message">Sit upright and relax your shoulders.</p>
-          <p class="overlay-note">This overlay stays above other apps without taking focus.</p>
+          <p class="overlay-message">Straighten up</p>
+          <p class="overlay-note">Sit back and lift your shoulders into position.</p>
         </div>
       </body>
     </html>

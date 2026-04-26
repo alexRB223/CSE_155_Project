@@ -15,22 +15,6 @@ export interface CreateSessionInput {
   endedAtIso: string
 }
 
-export interface CreateUserInput {
-  username: string
-  password: string
-}
-
-export interface LoginUserInput {
-  username: string
-  password: string
-}
-
-export interface UserAccount {
-  id: string
-  username: string
-  createdAt: string
-}
-
 export interface PointConfig {
   idealY: number
   tolerance: number
@@ -45,8 +29,6 @@ export interface BackendApi {
   health: () => Promise<BackendHealth>
   listSessions: () => Promise<SessionPreview[]>
   createSession: (payload: CreateSessionInput) => Promise<SessionPreview>
-  signup: (payload: CreateUserInput) => Promise<UserAccount>
-  login: (payload: LoginUserInput) => Promise<UserAccount>
   getSettings: () => Promise<PostureSettings | null>
   updateSettings: (settings: PostureSettings) => Promise<boolean>
   deleteSettings: () => Promise<boolean>
