@@ -7,7 +7,7 @@ export function createOverlayWindow(): void {
 
   const { workArea } = screen.getPrimaryDisplay()
   const width = 320
-  const height = 120
+  const height = 80
   const margin = 25
 
   overlayWindow = new BrowserWindow({
@@ -33,30 +33,62 @@ export function createOverlayWindow(): void {
 
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true })
 
   const overlayHtml = `
     <!doctype html>
     <html>
       <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <style>
+          html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+          }
+          body {
+            display: flex;
+            align-items: stretch;
+            justify-content: stretch;
+          }
+          .overlay-card {
+            width: 98%;
+            height: 98%;
+            box-sizing: border-box;
+            padding: 16px 18px;
+            border-radius: 18px;
+            border: 1px solid rgba(251, 113, 133, 0.4);
+            background: rgba(69, 10, 10, 0.92);
+            color: #ffe4e6;
+          }
+          .overlay-title {
+            margin: 0 0 10px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #fecdd3;
+          }
+          .overlay-message {
+            margin: 0 0 8px;
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.1;
+          }
+          .overlay-note {
+            margin: 0;
+            font-size: 13px;
+            color: #fecdd3;
+          }
+        </style>
       </head>
-      <body class="m-0 h-screen w-screen overflow-hidden bg-transparent font-sans">
-        <div class="flex h-full w-full items-stretch justify-stretch">
-          <div
-            class="box-border h-full w-full rounded-[18px] border border-[rgba(251,113,133,0.4)] bg-[rgba(69,10,10,0.92)] px-[18px] py-4 text-rose-100"
-          >
-            <p class="mb-[10px] text-[12px] font-bold uppercase tracking-[0.12em] text-rose-200">
-              Posture Alert
-            </p>
-            <p class="mb-2 text-[24px] font-bold leading-[1.1] text-rose-100">
-              Straighten up
-            </p>
-            <p class="m-0 text-[13px] text-rose-200">
-              Sit back and lift your shoulders into position.
-            </p>
-          </div>
+      <body>
+        <div class="overlay-card">
+          <p class="overlay-title">Posture Alert</p>
+          <p class="overlay-message">Straighten up</p>
         </div>
       </body>
     </html>
