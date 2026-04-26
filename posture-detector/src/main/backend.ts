@@ -1,5 +1,12 @@
 import { ipcMain } from 'electron'
-import type { BackendHealth, SessionPreview, CreateSessionInput } from '../shared/backend'
+import type {
+  BackendHealth,
+  SessionPreview,
+  CreateSessionInput,
+  CreateUserInput,
+  LoginUserInput,
+  UserAccount
+} from '../shared/backend'
 
 const PY_BACKEND_URL = process.env.PY_BACKEND_URL ?? 'http://127.0.0.1:8000'
 
@@ -53,4 +60,35 @@ export function registerBackendIpc(): void {
       })
     }
   )
+
+  ipcMain.handle('backend:users:signup', async (_event, payload: CreateUserInput): Promise<UserAccount> => {
+    if (!payload.email) {
+      throw new Error('Missing email')
+    }
+    if (!payload.username) {
+      throw new Error('Missing username')
+    }
+    if (!payload.password) {
+      throw new Error('Missing password')
+    }
+
+    return callPythonApi<UserAccount>('/users/signup', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  })
+
+  ipcMain.handle('backend:users:login', async (_event, payload: LoginUserInput): Promise<UserAccount> => {
+    if (!payload.email) {
+      throw new Error('Missing email')
+    }
+    if (!payload.password) {
+      throw new Error('Missing password')
+    }
+
+    return callPythonApi<UserAccount>('/users/login', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  })
 }
