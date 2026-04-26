@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,7 @@ app = FastAPI(title="Posture Backend", version="0.1.0")
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 STORE_PATH = DATA_DIR / "sessions.json"
+DB_PATH = DATA_DIR / "app.db"
 
 
 class BackendHealth(BaseModel):
@@ -30,6 +32,29 @@ class SessionPreview(BaseModel):
 class CreateSessionInput(BaseModel):
     durationSeconds: int = Field(gt=0)
     endedAtIso: str
+
+
+def _get_db_connection() -> sqlite3.Connection:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def _init_db() -> None:
+    with _get_db_connection() as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT NOT NULL UNIQUE,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.commit()
 
 
 def _read_sessions() -> list[dict[str, Any]]:
@@ -56,6 +81,11 @@ def _validate_iso8601(value: str) -> None:
         datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as error:
         raise HTTPException(status_code=400, detail="endedAtIso must be a valid ISO timestamp") from error
+
+
+@app.on_event("startup")
+def startup() -> None:
+    _init_db()
 
 
 @app.get("/health", response_model=BackendHealth)
