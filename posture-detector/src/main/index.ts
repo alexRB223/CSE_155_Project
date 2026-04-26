@@ -106,6 +106,7 @@ function createOverlayWindow(): void {
 
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true })
 
   const overlayHtml = `
     <!doctype html>
@@ -130,28 +131,31 @@ function createOverlayWindow(): void {
             width: 100%;
             height: 100%;
             box-sizing: border-box;
-            padding: 16px 18px;
-            border-radius: 18px;
+            padding: 18px 20px;
+            border-radius: 20px;
             border: 1px solid rgba(251, 113, 133, 0.4);
-            background: rgba(69, 10, 10, 0.92);
+            background:
+              linear-gradient(135deg, rgba(127, 29, 29, 0.94), rgba(76, 5, 25, 0.92)),
+              rgba(69, 10, 10, 0.92);
             color: #ffe4e6;
+            box-shadow: 0 18px 36px rgba(2, 6, 23, 0.35);
           }
           .overlay-title {
-            margin: 0 0 8px;
-            font-size: 12px;
+            margin: 0 0 10px;
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
             color: #fecdd3;
           }
           .overlay-message {
             margin: 0;
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
-            line-height: 1.1;
+            line-height: 1.05;
           }
           .overlay-note {
-            margin: 10px 0 0;
+            margin: 12px 0 0;
             font-size: 13px;
             color: #fecdd3;
           }
@@ -159,9 +163,9 @@ function createOverlayWindow(): void {
       </head>
       <body>
         <div class="overlay-card">
-          <p class="overlay-title">Overlay Preview</p>
-          <p class="overlay-message">Straighten up</p>
-          <p class="overlay-note">Batch 1 placeholder window</p>
+          <p class="overlay-title">Posture Alert</p>
+          <p class="overlay-message">Sit upright and relax your shoulders.</p>
+          <p class="overlay-note">This overlay stays above other apps without taking focus.</p>
         </div>
       </body>
     </html>
@@ -169,13 +173,27 @@ function createOverlayWindow(): void {
 
   void overlayWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(overlayHtml)}`)
 
-  overlayWindow.once('ready-to-show', () => {
-    overlayWindow?.showInactive()
-  })
-
   overlayWindow.on('closed', () => {
     overlayWindow = null
   })
+}
+
+function setOverlayWindowVisible(visible: boolean): boolean {
+  if (!overlayWindow) {
+    createOverlayWindow()
+  }
+
+  if (!overlayWindow) {
+    return false
+  }
+
+  if (visible) {
+    overlayWindow.showInactive()
+  } else {
+    overlayWindow.hide()
+  }
+
+  return overlayWindow.isVisible()
 }
 
 app.whenReady().then(() => {
@@ -194,6 +212,8 @@ app.whenReady().then(() => {
     updateSettings(settings)
   )
   ipcMain.handle('backend:settings:delete', () => deleteSettings())
+  ipcMain.handle('overlay:get-visible', () => overlayWindow?.isVisible() ?? false)
+  ipcMain.handle('overlay:set-visible', (_event, visible: boolean) => setOverlayWindowVisible(visible))
 
   registerBackendIpc()
   startPython()

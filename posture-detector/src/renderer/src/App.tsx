@@ -95,6 +95,7 @@ function App(): React.JSX.Element {
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
   const [showSettings, setShowSettings] = useState(false)
+  const [overlayAlertsEnabled, setOverlayAlertsEnabled] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(true)
@@ -132,6 +133,29 @@ function App(): React.JSX.Element {
       // Ignore storage errors (e.g., disabled storage in hardened environments).
     }
   }, [goalSeconds])
+
+  useEffect(() => {
+    let active = true
+
+    const syncOverlayVisibility = async (): Promise<void> => {
+      try {
+        const visible = await window.electron.ipcRenderer.invoke('overlay:get-visible')
+        if (active) {
+          setOverlayAlertsEnabled(Boolean(visible))
+        }
+      } catch {
+        if (active) {
+          setOverlayAlertsEnabled(false)
+        }
+      }
+    }
+
+    void syncOverlayVisibility()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!isRunning) return
@@ -194,6 +218,7 @@ function App(): React.JSX.Element {
     setShowSettings(false)
     setAuthError('')
     setAuthMode('login')
+    setOverlayAlertsEnabled(false)
     setLoginForm({
       username: '',
       password: ''
@@ -203,6 +228,19 @@ function App(): React.JSX.Element {
       password: ''
     })
     setCurrentUser(null)
+    void window.electron.ipcRenderer.invoke('overlay:set-visible', false)
+  }
+
+  const handleToggleOverlay = async (): Promise<void> => {
+    try {
+      const nextEnabled = !overlayAlertsEnabled
+      setOverlayAlertsEnabled(nextEnabled)
+      if (!nextEnabled) {
+        await window.electron.ipcRenderer.invoke('overlay:set-visible', false)
+      }
+    } catch {
+      setOverlayAlertsEnabled(false)
+    }
   }
 
   const handleToggleSettings = (): void => {
@@ -300,6 +338,16 @@ function App(): React.JSX.Element {
       window.clearInterval(intervalId)
     }
   }, [cameraEnabled, postureState, soundAlertsEnabled])
+
+  useEffect(() => {
+    const shouldShowOverlay =
+      overlayAlertsEnabled &&
+      currentUser !== null &&
+      cameraEnabled &&
+      postureState === 'slouching'
+
+    void window.electron.ipcRenderer.invoke('overlay:set-visible', shouldShowOverlay)
+  }, [cameraEnabled, currentUser, overlayAlertsEnabled, postureState])
 
   useEffect(() => {
     return () => {
@@ -463,9 +511,14 @@ function App(): React.JSX.Element {
             <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
             <p>Signed in as {currentUser.username}</p>
           </div>
-          <button className="header-action-btn" type="button" onClick={handleLogout}>
-            Log Out
-          </button>
+          <div className="header-actions">
+            <button className="header-action-btn" type="button" onClick={() => void handleToggleOverlay()}>
+              {overlayAlertsEnabled ? 'Overlay Alerts On' : 'Overlay Alerts Off'}
+            </button>
+            <button className="header-action-btn" type="button" onClick={handleLogout}>
+              Log Out
+            </button>
+          </div>
         </div>
       </header>
 

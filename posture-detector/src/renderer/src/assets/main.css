@@ -199,6 +199,13 @@ body {
   gap: 16px;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 2rem;
@@ -604,6 +611,10 @@ input:checked + .toggle-slider:before {
 
   .app-header-row {
     flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
   }
 }
 
