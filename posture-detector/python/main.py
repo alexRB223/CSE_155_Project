@@ -37,20 +37,18 @@ class CreateSessionInput(BaseModel):
 
 
 class CreateUserInput(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=128)
 
 
 class UserAccount(BaseModel):
     id: str
-    email: str
     username: str
     createdAt: str
 
 
 class LoginUserInput(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
+    username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=128)
 
 
@@ -106,7 +104,6 @@ def _verify_password(password: str, stored_password_hash: str) -> bool:
 def _map_user_row(row: sqlite3.Row) -> UserAccount:
     return UserAccount(
         id=row["id"],
-        email=row["email"],
         username=row["username"],
         createdAt=row["created_at"]
     )
@@ -114,10 +111,10 @@ def _map_user_row(row: sqlite3.Row) -> UserAccount:
 
 def _create_user(payload: CreateUserInput) -> UserAccount:
     created_at = datetime.now(timezone.utc).isoformat()
+    normalized_username = payload.username.strip()
     user = UserAccount(
         id=str(uuid.uuid4()),
-        email=payload.email.strip().lower(),
-        username=payload.username.strip(),
+        username=normalized_username,
         createdAt=created_at
     )
 
@@ -130,7 +127,7 @@ def _create_user(payload: CreateUserInput) -> UserAccount:
                 """,
                 (
                     user.id,
-                    user.email,
+                    f"{normalized_username.lower()}@local.user",
                     user.username,
                     _hash_password(payload.password),
                     user.createdAt
@@ -139,8 +136,6 @@ def _create_user(payload: CreateUserInput) -> UserAccount:
             connection.commit()
     except sqlite3.IntegrityError as error:
         message = str(error).lower()
-        if "email" in message:
-            raise HTTPException(status_code=409, detail="Email is already in use") from error
         if "username" in message:
             raise HTTPException(status_code=409, detail="Username is already in use") from error
         raise HTTPException(status_code=400, detail="Unable to create user") from error
@@ -154,13 +149,13 @@ def _login_user(payload: LoginUserInput) -> UserAccount:
             """
             SELECT id, email, username, password_hash, created_at
             FROM users
-            WHERE email = ?
+            WHERE username = ?
             """,
-            (payload.email.strip().lower(),)
+            (payload.username.strip(),)
         ).fetchone()
 
     if row is None or not _verify_password(payload.password, row["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
     return _map_user_row(row)
 

@@ -5,6 +5,7 @@ import SessionSummaryPanel from './components/SessionSummaryPanel'
 import ReminderBanner from './components/ReminderBanner'
 import ControlBar from './components/ControlBar'
 import SettingsPanel from './components/SettingsPanel'
+import type { CreateUserInput, LoginUserInput, UserAccount } from '../../shared/backend'
 import './assets/main.css'
 
 const DEFAULT_GOAL_SECONDS = 60
@@ -14,6 +15,7 @@ const GOAL_STEP_SECONDS = 30
 const DEFAULT_REMINDER = 'Keep your shoulders relaxed and sit upright.'
 
 type Theme = 'dark' | 'light'
+type AuthMode = 'login' | 'signup'
 
 function getInitialTheme(): Theme {
   try {
@@ -56,6 +58,18 @@ function normalizeGoalSeconds(value: number): number {
 }
 
 function App(): React.JSX.Element {
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
+  const [authError, setAuthError] = useState('')
+  const [authPending, setAuthPending] = useState(false)
+  const [loginForm, setLoginForm] = useState<LoginUserInput>({
+    username: '',
+    password: ''
+  })
+  const [signupForm, setSignupForm] = useState<CreateUserInput>({
+    username: '',
+    password: ''
+  })
   const [seconds, setSeconds] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
   const [backendStatus, setBackendStatus] = useState('Checking backend...')
@@ -305,11 +319,124 @@ function App(): React.JSX.Element {
     []
   )
 
+  const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+    setAuthError('')
+    setAuthPending(true)
+
+    try {
+      const user =
+        authMode === 'login'
+          ? await window.api.login(loginForm)
+          : await window.api.signup(signupForm)
+
+      setCurrentUser(user)
+    } catch (error) {
+      const fallbackMessage =
+        authMode === 'login' ? 'Unable to log in right now.' : 'Unable to create account right now.'
+
+      if (error instanceof Error && error.message) {
+        setAuthError(error.message)
+      } else {
+        setAuthError(fallbackMessage)
+      }
+    } finally {
+      setAuthPending(false)
+    }
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="app-shell auth-shell">
+        <section className="auth-card">
+          <div className="auth-copy">
+            <p className="auth-eyebrow">Posture Study Companion</p>
+            <h1>{authMode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
+            <p>
+              {authMode === 'login'
+                ? 'Log in to keep your posture sessions and account data tied together.'
+                : 'Start with a simple account so we can connect future posture history and settings to you.'}
+            </p>
+            <p className="backend-status">{backendStatus}</p>
+          </div>
+
+          <form className="auth-form" onSubmit={handleAuthSubmit}>
+            <label className="auth-field">
+              <span>Username</span>
+              <input
+                type="text"
+                value={authMode === 'login' ? loginForm.username : signupForm.username}
+                onChange={(event) => {
+                  const { value } = event.target
+                  if (authMode === 'login') {
+                    setLoginForm((prev) => ({ ...prev, username: value }))
+                    return
+                  }
+                  setSignupForm((prev) => ({ ...prev, username: value }))
+                }}
+                placeholder="studybuddy"
+                minLength={3}
+                maxLength={50}
+                required
+              />
+            </label>
+
+            <label className="auth-field">
+              <span>Password</span>
+              <input
+                type="password"
+                value={authMode === 'login' ? loginForm.password : signupForm.password}
+                onChange={(event) => {
+                  const { value } = event.target
+                  if (authMode === 'login') {
+                    setLoginForm((prev) => ({ ...prev, password: value }))
+                    return
+                  }
+                  setSignupForm((prev) => ({ ...prev, password: value }))
+                }}
+                placeholder="At least 8 characters"
+                minLength={8}
+                maxLength={128}
+                required
+              />
+            </label>
+
+            {authError && <p className="auth-error">{authError}</p>}
+
+            <button className="auth-submit" type="submit" disabled={authPending}>
+              {authPending
+                ? authMode === 'login'
+                  ? 'Logging in...'
+                  : 'Creating account...'
+                : authMode === 'login'
+                  ? 'Log In'
+                  : 'Sign Up'}
+            </button>
+
+            <button
+              className="auth-switch"
+              type="button"
+              onClick={() => {
+                setAuthError('')
+                setAuthMode((prev) => (prev === 'login' ? 'signup' : 'login'))
+              }}
+            >
+              {authMode === 'login'
+                ? 'Need an account? Create one'
+                : 'Already have an account? Log in'}
+            </button>
+          </form>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <h1>Posture Study Companion</h1>
         <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
+        <p>Signed in as {currentUser.username}</p>
         <p className="backend-status">{backendStatus}</p>
       </header>
 

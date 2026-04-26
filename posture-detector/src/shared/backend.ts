@@ -16,19 +16,17 @@ export interface CreateSessionInput {
 }
 
 export interface CreateUserInput {
-  email: string
   username: string
   password: string
 }
 
 export interface LoginUserInput {
-  email: string
+  username: string
   password: string
 }
 
 export interface UserAccount {
   id: string
-  email: string
   username: string
   createdAt: string
 }
