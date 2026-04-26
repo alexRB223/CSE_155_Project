@@ -118,6 +118,46 @@ body {
   margin-bottom: 12px;
 }
 
+.camera-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.camera-card-header h2 {
+  margin: 0;
+}
+
+.camera-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.camera-quickset-btn {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.camera-quickset-btn:hover {
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.camera-quickset-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .camera-placeholder {
   min-height: 320px;
   border: 2px dashed #475569;
@@ -679,6 +719,12 @@ input:checked + .toggle-slider:before {
 :root[data-theme='light'] .card {
   background: rgba(255, 255, 255, 0.96);
   border-color: #cbd5e1;
+}
+
+:root[data-theme='light'] .camera-quickset-btn {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 :root[data-theme='light'] .backend-status {
