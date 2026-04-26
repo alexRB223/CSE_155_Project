@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 
 type SettingsPanelProps = {
+  overlayAlertsEnabled: boolean
   notificationsEnabled: boolean
   soundAlertsEnabled: boolean
   cameraEnabled: boolean
   goalSeconds: number
   theme: 'dark' | 'light'
+  onToggleOverlay: () => void
   onToggleNotifications: () => void
   onToggleSoundAlerts: () => void
   onToggleCamera: () => void
@@ -20,11 +22,13 @@ const HOLD_DELAY_MS = 350
 const HOLD_REPEAT_MS = 90
 
 function SettingsPanel({
+  overlayAlertsEnabled,
   notificationsEnabled,
   soundAlertsEnabled,
   cameraEnabled,
   goalSeconds,
   theme,
+  onToggleOverlay,
   onToggleNotifications,
   onToggleSoundAlerts,
   onToggleCamera,
@@ -107,6 +111,21 @@ function SettingsPanel({
               +
             </button>
           </div>
+        </div>
+
+        <div className="setting-row">
+          <div>
+            <h3>Desktop Overlay Alerts</h3>
+            <p>Show posture warnings on top of other apps when slouching is detected.</p>
+          </div>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={overlayAlertsEnabled}
+              onChange={onToggleOverlay}
+            />
+            <span className="toggle-slider"></span>
+          </label>
         </div>
 
         <div className="setting-row">

@@ -62,8 +62,7 @@ function App(): React.JSX.Element {
   const [postureState, setPostureState] = useState<PostureState>('loading')
   const [postureConfidence, setPostureConfidence] = useState(0)
   const [postureNote, setPostureNote] = useState('Starting live posture analysis...')
-  const [showSettings, setShowSettings] = useState(false)
-  const [overlayAlertsEnabled, setOverlayAlertsEnabled] = useState(false)
+  const [overlayAlertsEnabled, setOverlayAlertsEnabled] = useState(true)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(true)
@@ -101,29 +100,6 @@ function App(): React.JSX.Element {
       // Ignore storage errors (e.g., disabled storage in hardened environments).
     }
   }, [goalSeconds])
-
-  useEffect(() => {
-    let active = true
-
-    const syncOverlayVisibility = async (): Promise<void> => {
-      try {
-        const visible = await window.electron.ipcRenderer.invoke('overlay:get-visible')
-        if (active) {
-          setOverlayAlertsEnabled(Boolean(visible))
-        }
-      } catch {
-        if (active) {
-          setOverlayAlertsEnabled(false)
-        }
-      }
-    }
-
-    void syncOverlayVisibility()
-
-    return () => {
-      active = false
-    }
-  }, [])
 
   useEffect(() => {
     let active = true
@@ -225,10 +201,6 @@ function App(): React.JSX.Element {
     } catch {
       setOverlayAlertsEnabled(false)
     }
-  }
-
-  const handleToggleSettings = (): void => {
-    setShowSettings((prev) => !prev)
   }
 
   const handleToggleTheme = (): void => {
@@ -359,11 +331,6 @@ function App(): React.JSX.Element {
             <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
             <p className="backend-status">{backendStatus}</p>
           </div>
-          <div className="header-actions">
-            <button className="header-action-btn" type="button" onClick={() => void handleToggleOverlay()}>
-              {overlayAlertsEnabled ? 'Overlay Alerts On' : 'Overlay Alerts Off'}
-            </button>
-          </div>
         </div>
       </header>
 
@@ -397,22 +364,21 @@ function App(): React.JSX.Element {
           onStart={handleStart}
           onPause={handlePause}
           onReset={handleReset}
-          onToggleSettings={handleToggleSettings}
         />
-        {showSettings && (
-          <SettingsPanel
-            notificationsEnabled={notificationsEnabled}
-            soundAlertsEnabled={soundAlertsEnabled}
-            cameraEnabled={cameraEnabled}
-            goalSeconds={goalSeconds}
-            theme={theme}
-            onToggleNotifications={handleToggleNotifications}
-            onToggleSoundAlerts={handleToggleSoundAlerts}
-            onToggleCamera={handleToggleCamera}
-            onChangeGoal={handleChangeGoal}
-            onToggleTheme={handleToggleTheme}
-          />
-        )}
+        <SettingsPanel
+          overlayAlertsEnabled={overlayAlertsEnabled}
+          notificationsEnabled={notificationsEnabled}
+          soundAlertsEnabled={soundAlertsEnabled}
+          cameraEnabled={cameraEnabled}
+          goalSeconds={goalSeconds}
+          theme={theme}
+          onToggleOverlay={handleToggleOverlay}
+          onToggleNotifications={handleToggleNotifications}
+          onToggleSoundAlerts={handleToggleSoundAlerts}
+          onToggleCamera={handleToggleCamera}
+          onChangeGoal={handleChangeGoal}
+          onToggleTheme={handleToggleTheme}
+        />
       </main>
     </div>
   )
