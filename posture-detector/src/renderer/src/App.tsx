@@ -170,6 +170,14 @@ function App(): React.JSX.Element {
     setSlouchStreak(0)
   }
 
+  const handleLogout = (): void => {
+    handleReset()
+    setShowSettings(false)
+    setAuthError('')
+    setAuthMode('login')
+    setCurrentUser(null)
+  }
+
   const handleToggleSettings = (): void => {
     setShowSettings((prev) => !prev)
   }
@@ -325,6 +333,35 @@ function App(): React.JSX.Element {
           </div>
 
           <form className="auth-form" onSubmit={handleAuthSubmit}>
+            <div className="auth-mode-toggle" aria-label="Authentication mode">
+              <button
+                className={`auth-mode-btn ${authMode === 'login' ? 'active' : ''}`}
+                type="button"
+                onClick={() => {
+                  setAuthError('')
+                  setAuthMode('login')
+                }}
+              >
+                Log In
+              </button>
+              <button
+                className={`auth-mode-btn ${authMode === 'signup' ? 'active' : ''}`}
+                type="button"
+                onClick={() => {
+                  setAuthError('')
+                  setAuthMode('signup')
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <p className="auth-mode-note">
+              {authMode === 'login'
+                ? 'Use an existing username and password.'
+                : 'This creates a brand new account.'}
+            </p>
+
             <label className="auth-field">
               <span>Username</span>
               <input
@@ -373,8 +410,8 @@ function App(): React.JSX.Element {
                   ? 'Logging in...'
                   : 'Creating account...'
                 : authMode === 'login'
-                  ? 'Log In'
-                  : 'Sign Up'}
+                  ? 'Log In to Existing Account'
+                  : 'Create New Account'}
             </button>
 
             <button
@@ -386,8 +423,8 @@ function App(): React.JSX.Element {
               }}
             >
               {authMode === 'login'
-                ? 'Need an account? Create one'
-                : 'Already have an account? Log in'}
+                ? 'Need a new account? Switch to sign up'
+                : 'Already have an account? Switch to log in'}
             </button>
           </form>
         </section>
@@ -398,9 +435,16 @@ function App(): React.JSX.Element {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>Posture Study Companion</h1>
-        <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
-        <p>Signed in as {currentUser.username}</p>
+        <div className="app-header-row">
+          <div>
+            <h1>Posture Study Companion</h1>
+            <p>Desktop dashboard prototype for posture monitoring during study sessions.</p>
+            <p>Signed in as {currentUser.username}</p>
+          </div>
+          <button className="header-action-btn" type="button" onClick={handleLogout}>
+            Log Out
+          </button>
+        </div>
       </header>
 
       <main className="dashboard">
